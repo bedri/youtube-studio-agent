@@ -1,5 +1,8 @@
 {
   "name": "youtube-studio-agent",
+  "version": "1.0.0",
+  "description": "Autonomous YouTube channel manager desktop application",
+  "author": "bedri",
   "type": "module",
   "private": true,
   "license": "GPL-3.0",
