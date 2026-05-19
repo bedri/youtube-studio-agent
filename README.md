@@ -140,3 +140,35 @@ sudo systemctl start youtube-studio-agent.service
     ```bash
     systemctl restart youtube-studio-agent.service
     ```
+
+---
+
+## 🖥️ Desktop Application (Electron)
+
+The project includes a robust, natively-integrated **Electron.js** desktop wrapper that automatically manages the Nuxt Nitro backend, local KV stores, and YouTube API integrations without relying on a browser.
+
+### 1. Development Mode
+To launch the application as a standalone desktop window while preserving Hot Module Replacement (HMR):
+```bash
+npm run desktop:dev
+```
+
+### 2. Building for Production
+To package the entire full-stack application into a standalone binary (e.g., `.AppImage` on Linux):
+```bash
+npm run desktop:build
+```
+
+---
+
+## 📦 Universal Graphical Installer
+
+The repository includes a zero-dependency graphical setup wizard specifically designed for Linux distributions (openSUSE, Ubuntu, Fedora, Linux Mint).
+
+The installer utilizes your system's native dialog windows (`zenity` for GNOME/GTK, `kdialog` for KDE Plasma) to guide you through downloading, verifying (via SHA256), and installing the YouTube Studio Agent. If no graphical environment is found, it automatically falls back to a terminal (CLI) interface.
+
+### How to use the installer:
+Simply execute the shell script from the project root:
+```bash
+./installer/install.sh
+```
