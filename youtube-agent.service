@@ -1,0 +1,15 @@
+[Unit]
+Description=YouTube Batch Agent Service
+After=network.target
+
+[Service]
+Type=simple
+User=bedri
+WorkingDirectory=/home/bedri/Projects/Youtube-Agent
+ExecStart=/usr/bin/npm run dev
+Restart=on-failure
+Environment=NODE_ENV=development
+# Add any other required environment variables here if not in .env
+
+[Install]
+WantedBy=multi-user.target

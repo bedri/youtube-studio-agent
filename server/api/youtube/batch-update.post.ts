@@ -2,12 +2,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { videoIds, changes } = body // changes: { titleTemplate, descriptionTemplate, tagsAction: 'add' | 'replace', tags: string[] }
 
-  const tokensRaw = getCookie(event, 'youtube_tokens')
-  if (!tokensRaw) {
+  const tokens = await getYouTubeTokens(event)
+  if (!tokens) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const tokens = JSON.parse(tokensRaw)
   const { oauth2Client, youtube } = useYouTubeClient()
   oauth2Client.setCredentials(tokens)
 

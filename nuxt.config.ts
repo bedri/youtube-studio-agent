@@ -4,6 +4,14 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  app: {
+    head: {
+      title: 'YouTube Batch Agent',
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' }
+      ]
+    }
+  },
   css: ['~/assets/css/main.css'],
   modules: ['@nuxt/ui'],
   runtimeConfig: {
@@ -15,7 +23,13 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
-    scanDirs: ['../server']
+    scanDirs: ['../server'],
+    storage: {
+      data: {
+        driver: 'fs',
+        base: './.data/storage'
+      }
+    }
   },
   devtools: { enabled: true }
 })

@@ -10,7 +10,15 @@
     @apply bg-zinc-950 text-zinc-100;
     font-family: 'Inter', sans-serif;
   }
+
+  ::selection {
+    @apply bg-red-600/40 text-red-100;
+  }
   
+  ::-moz-selection {
+    @apply bg-red-600/40 text-red-100;
+  }
+
   button, 
   a, 
   input[type="checkbox"], 
@@ -26,6 +34,17 @@
 [data-active-item],
 [data-highlighted] {
   @apply !bg-red-600/20 !text-red-400;
+}
+
+/* Global Modal Overlay - NUCLEAR DARK BLUR FIX */
+.fixed.inset-0.bg-white\/75,
+.fixed.inset-0.bg-background\/75,
+.fixed.inset-0.backdrop-blur-sm,
+[role="presentation"] div.fixed.inset-0,
+[portal] div.fixed.inset-0 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
 }
 
 .glass-card {

@@ -19,5 +19,8 @@ export default defineEventHandler(async (event) => {
     maxAge: 60 * 60 * 24 * 7 // 1 week
   })
 
+  // Persist tokens for background worker
+  await useStorage('data').setItem('youtube:tokens', tokens)
+
   return sendRedirect(event, '/')
 })

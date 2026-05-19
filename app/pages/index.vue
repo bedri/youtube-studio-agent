@@ -1,13 +1,42 @@
 <script setup lang="ts">
-const { data: auth, refresh: refreshAuth } = await useFetch('/api/me')
+const { data: auth, refresh: refreshAuth } = await useFetch('/api/me', {
+  refreshInterval: 300000 // Refresh every 5 minutes
+})
 const { data: videos, status: videosStatus, refresh: refreshVideos } = await useFetch('/api/youtube/videos', {
   immediate: false,
   watch: [auth]
 })
 
+const isManualRefreshing = ref(false)
+const handleManualRefresh = async () => {
+  isManualRefreshing.value = true
+  try {
+    await refreshVideos({ query: { refresh: 'true' } })
+  } finally {
+    isManualRefreshing.value = false
+  }
+}
+
 onMounted(() => {
   if (auth.value?.authenticated) {
     refreshVideos()
+    
+    // Surgical update for view counts every 30 seconds
+    setInterval(async () => {
+      if (!videos.value || videos.value.length === 0) return
+      
+      try {
+        const statsMap = await $fetch<Record<string, string>>('/api/youtube/stats')
+        videos.value.forEach(video => {
+          if (statsMap[video.id]) {
+            if (!video.statistics) video.statistics = {}
+            video.statistics.viewCount = statsMap[video.id]
+          }
+        })
+      } catch (e) {
+        console.error('Failed to update live stats:', e)
+      }
+    }, 30000)
   }
 })
 
@@ -97,6 +126,13 @@ const toggleSelection = (id: string) => {
   }
 }
 
+const formatNumber = (num: string | number) => {
+  const n = parseInt(String(num))
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(2) + 'K'
+  return n.toString()
+}
+
 const selectAll = () => {
   if (selectedVideos.value.length === videos.value?.length) {
     selectedVideos.value = []
@@ -153,10 +189,20 @@ const handleBatchUpdate = async () => {
     // Refresh to see changes
     await refreshVideos()
     selectedVideos.value = []
-    alert('Toplu güncelleme tamamlandı!')
+    toast.add({ 
+      title: 'Bulk Update Complete', 
+      description: `Successfully updated ${selectedVideos.value.length} videos.`, 
+      color: 'red',
+      icon: 'i-heroicons-check-badge'
+    })
   } catch (e) {
     console.error(e)
-    alert('Bir hata oluştu.')
+    toast.add({ 
+      title: 'Update Failed', 
+      description: 'Something went wrong while updating your videos.', 
+      color: 'red',
+      icon: 'i-heroicons-exclamation-triangle'
+    })
   } finally {
     isUpdating.value = false
   }
@@ -184,6 +230,27 @@ const handleDeleteVideo = async () => {
   }
 }
 
+const handleChannelUpdate = async () => {
+  isChannelUpdating.value = true
+  try {
+    await $fetch('/api/youtube/channel-update', { 
+      method: 'POST', 
+      body: { 
+        title: channelForm.title !== auth.value?.channel?.title ? channelForm.title : undefined, 
+        description: channelForm.description 
+      } 
+    })
+    await refreshAuth()
+    isChannelModalOpen.value = false
+    toast.add({ title: 'Channel updated successfully', color: 'red' })
+  } catch (e: any) {
+    const msg = e.data?.message || e.message
+    toast.add({ title: 'Update Failed', description: msg, color: 'red' })
+  } finally {
+    isChannelUpdating.value = false
+  }
+}
+
 watch(isPlayerOpen, (val) => {
   if (!val) {
     selectedVideoForPlay.value = null
@@ -200,7 +267,7 @@ watch(isDeleteModalOpen, (val) => {
 <template>
   <div class="min-h-screen p-4 md:p-8 max-w-7xl mx-auto space-y-8">
     <!-- Header -->
-    <header class="flex flex-col md:flex-row items-center justify-between gap-6">
+    <header class="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
       <div class="flex items-center gap-4">
         <AppLogo />
         <div>
@@ -216,13 +283,49 @@ watch(isDeleteModalOpen, (val) => {
           <p class="font-medium">{{ auth.channel?.title }}</p>
           <p class="text-xs text-zinc-500">Channel Settings</p>
         </div>
-        <UAvatar :src="auth.channel?.thumbnails?.default?.url" :alt="auth.channel?.title" />
+        <UAvatar :src="auth.channel?.thumbnails?.default?.url" :alt="auth.channel?.title" size="lg" class="border-2 border-red-500/20" />
       </div>
       <a v-else href="/api/auth/login" class="btn-premium inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-red-900/20">
         <UIcon name="i-heroicons-arrow-right-on-rectangle" class="w-5 h-5" />
         Connect YouTube
       </a>
     </header>
+
+    <!-- Channel Branding Banner -->
+    <div v-if="auth?.authenticated" class="relative group">
+      <!-- Banner Background -->
+      <div 
+        class="h-32 md:h-48 w-full rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 relative shadow-2xl"
+      >
+        <img 
+          v-if="auth.branding?.image?.bannerExternalUrl"
+          :src="auth.branding.image.bannerExternalUrl" 
+          class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+          alt="Channel Banner"
+        />
+        <div v-else class="w-full h-full bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
+          <UIcon name="i-heroicons-photo" class="w-12 h-12 text-zinc-800" />
+        </div>
+        
+        <!-- Stats Overlay -->
+        <div class="absolute bottom-4 left-6 flex items-center gap-6 bg-black/20 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5">
+          <div class="flex flex-col">
+            <span class="text-2xl font-black text-white leading-none">{{ formatNumber(auth.statistics?.subscriberCount || 0) }}</span>
+            <span class="text-[10px] uppercase tracking-[0.2em] text-zinc-300 font-black mt-1">Subscribers</span>
+          </div>
+          <div class="h-10 w-px bg-white/10"></div>
+          <div class="flex flex-col">
+            <span class="text-2xl font-black text-white leading-none">{{ formatNumber(auth.statistics?.videoCount || 0) }}</span>
+            <span class="text-[10px] uppercase tracking-[0.2em] text-zinc-300 font-black mt-1">Videos</span>
+          </div>
+        </div>
+
+        <!-- Channel Handle Overlay -->
+        <div class="absolute top-4 right-6 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+          <span class="text-xs font-bold text-zinc-300">{{ auth.channel?.customUrl || '@channel' }}</span>
+        </div>
+      </div>
+    </div>
 
     <div v-if="auth?.authenticated" class="grid lg:grid-cols-3 gap-8">
       <!-- Sidebar: Controls -->
@@ -268,7 +371,26 @@ watch(isDeleteModalOpen, (val) => {
             </UFormField>
 
             <UFormField label="Tags Action">
-              <URadioGroup v-model="form.tagsAction" :options="[{ label: 'Add to existing', value: 'add' }, { label: 'Replace all', value: 'replace' }]" />
+              <div class="flex p-1 bg-zinc-950 rounded-xl border border-white/5 w-full mt-1">
+                <button 
+                  type="button"
+                  @click="form.tagsAction = 'add'"
+                  class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all duration-500 font-black text-[10px] uppercase tracking-[0.2em]"
+                  :class="form.tagsAction === 'add' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' : 'text-zinc-600 hover:text-zinc-400'"
+                >
+                  <UIcon name="i-heroicons-plus-circle" class="w-4 h-4" />
+                  Append
+                </button>
+                <button 
+                  type="button"
+                  @click="form.tagsAction = 'replace'"
+                  class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all duration-500 font-black text-[10px] uppercase tracking-[0.2em]"
+                  :class="form.tagsAction === 'replace' ? 'bg-zinc-800 text-white border border-white/10 shadow-xl' : 'text-zinc-600 hover:text-zinc-400'"
+                >
+                  <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
+                  Overwrite
+                </button>
+              </div>
             </UFormField>
 
             <div class="grid grid-cols-2 gap-4">
@@ -302,7 +424,15 @@ watch(isDeleteModalOpen, (val) => {
           <UTabs v-model="activeTab" :items="items" class="w-full max-w-xs" />
           <div class="flex items-center gap-2 w-full md:w-auto">
             <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" placeholder="Search videos..." class="flex-grow md:w-64" />
-            <UButton color="primary" variant="solid" size="sm" @click="refreshVideos" icon="i-heroicons-arrow-path" class="btn-premium px-4 shadow-sm">
+            <UButton 
+              color="red" 
+              variant="solid" 
+              size="sm" 
+              @click="handleManualRefresh" 
+              icon="i-heroicons-arrow-path" 
+              :loading="videosStatus === 'pending' || isManualRefreshing"
+              class="btn-premium px-4 shadow-sm"
+            >
               Refresh
             </UButton>
           </div>
@@ -329,7 +459,12 @@ watch(isDeleteModalOpen, (val) => {
                   class="relative group cursor-pointer w-16 h-9 overflow-hidden rounded-lg shadow-lg border border-white/5" 
                   @click.stop="openPlayer(row.original)"
                 >
-                  <img :src="row.original.snippet.thumbnails.default.url" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <img 
+                    :src="row.original.status.privacyStatus === 'private' 
+                      ? `/api/youtube/thumbnail?id=${row.original.id}` 
+                      : row.original.snippet.thumbnails.default.url" 
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                  />
                   <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
                     <div class="w-6 h-6 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
                       <UIcon name="i-heroicons-play-solid" class="w-3 h-3 text-white" />
@@ -399,7 +534,7 @@ watch(isDeleteModalOpen, (val) => {
     </div>
 
     <!-- Video Player Modal -->
-    <UModal v-model:open="isPlayerOpen">
+    <UModal v-model:open="isPlayerOpen" :ui="{ overlay: 'bg-black/80 backdrop-blur-xl' }">
       <template #content>
         <div class="bg-black rounded-xl overflow-hidden shadow-2xl max-w-4xl w-full mx-auto">
           <div class="aspect-video w-full">
@@ -424,7 +559,7 @@ watch(isDeleteModalOpen, (val) => {
     </UModal>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="isDeleteModalOpen">
+    <UModal v-model:open="isDeleteModalOpen" :ui="{ overlay: 'bg-black/80 backdrop-blur-xl' }">
       <template #content>
         <UCard class="glass-card !bg-zinc-950 border-red-500/20 shadow-2xl">
           <template #header>
@@ -474,7 +609,7 @@ watch(isDeleteModalOpen, (val) => {
     </UModal>
 
     <!-- Channel Settings Modal -->
-    <UModal v-model:open="isChannelModalOpen">
+    <UModal v-model:open="isChannelModalOpen" :ui="{ overlay: 'bg-black/80 backdrop-blur-xl' }">
       <template #content>
         <UCard class="glass-card !bg-zinc-950 border-white/5 shadow-2xl max-w-2xl w-full mx-auto">
           <template #header>
@@ -484,30 +619,12 @@ watch(isDeleteModalOpen, (val) => {
             </div>
           </template>
 
-          <form @submit.prevent="async () => {
-            isChannelUpdating = true
-            try {
-              await $fetch('/api/youtube/channel-update', { 
-                method: 'POST', 
-                body: { 
-                  title: channelForm.title !== auth.channel?.title ? channelForm.title : undefined, 
-                  description: channelForm.description 
-                } 
-              })
-              await refreshAuth()
-              isChannelModalOpen = false
-              toast.add({ title: 'Channel updated successfully', color: 'red' })
-            } catch (e) {
-              toast.add({ title: 'Error updating channel', color: 'red' })
-            } finally {
-              isChannelUpdating = false
-            }
-          }" class="space-y-6 py-4">
+          <form @submit.prevent="handleChannelUpdate" class="space-y-6 py-4">
             <UFormField label="Channel Title" help="Updating title may require channel verification">
               <UInput 
                 v-model="channelForm.title" 
                 :placeholder="auth.channel?.title" 
-                class="!bg-zinc-900/50 border-white/5"
+                class="w-full !bg-zinc-900/50 border-white/5"
               />
             </UFormField>
             <UFormField label="Channel Description">
@@ -515,7 +632,7 @@ watch(isDeleteModalOpen, (val) => {
                 v-model="channelForm.description" 
                 :placeholder="auth.channel?.description" 
                 :rows="8" 
-                class="!bg-zinc-900/50 border-white/5 font-sans leading-relaxed"
+                class="w-full !bg-zinc-900/50 border-white/5 font-sans leading-relaxed"
               />
             </UFormField>
             

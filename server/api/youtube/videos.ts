@@ -1,12 +1,21 @@
 export default defineEventHandler(async (event) => {
-  const tokensRaw = getCookie(event, 'youtube_tokens')
-  if (!tokensRaw) {
+  const tokens = await getYouTubeTokens(event)
+  if (!tokens) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const tokens = JSON.parse(tokensRaw)
   const { oauth2Client, youtube } = useYouTubeClient()
   oauth2Client.setCredentials(tokens)
+
+  // Check cache first
+  const query = getQuery(event)
+  if (query.refresh !== 'true') {
+    const cached = await useStorage('data').getItem('youtube:video_cache')
+    if (cached) {
+      console.log('[API] Serving videos from cache')
+      return cached
+    }
+  }
 
   // 1. Get channel info to find the uploads playlist ID
   const channelRes = await youtube.channels.list({
@@ -60,5 +69,10 @@ export default defineEventHandler(async (event) => {
   }
 
   console.log('Total videos fetched from API:', allVideos.length)
+
+  // CRITICAL: Update the cache so subsequent reloads use this data
+  await useStorage('data').setItem('youtube:video_cache', allVideos)
+  await useStorage('data').setItem('youtube:known_videos', videoIds)
+  
   return allVideos
 })

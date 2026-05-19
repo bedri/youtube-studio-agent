@@ -3,25 +3,19 @@ import { google } from 'googleapis'
 export default defineEventHandler(async (event) => {
   const { title, description } = await readBody(event)
   
-  const session = await getSession(event, { password: process.env.SESSION_PASSWORD || 'default_session_password_32_chars_long' })
-  if (!session.data.tokens) {
+  const tokens = await getYouTubeTokens(event)
+  if (!tokens) {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
   }
 
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.YOUTUBE_CLIENT_ID,
-    process.env.YOUTUBE_CLIENT_SECRET,
-    process.env.YOUTUBE_REDIRECT_URI
-  )
-  oauth2Client.setCredentials(session.data.tokens)
-
-  const youtube = google.youtube({ version: 'v3', auth: oauth2Client })
+  const { oauth2Client, youtube } = useYouTubeClient()
+  oauth2Client.setCredentials(tokens)
 
   try {
-    // 1. Get current channel info to get existing snippet
+    // 1. Get current channel info
     const channelRes = await youtube.channels.list({
       mine: true,
-      part: ['snippet']
+      part: ['snippet', 'brandingSettings']
     })
 
     const channel = channelRes.data.items?.[0]
@@ -29,25 +23,45 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, message: 'Channel not found' })
     }
 
-    // 2. Update channel
-    const updateBody: any = {
-      id: channel.id,
-      snippet: {
-        ...channel.snippet
-      }
+    // 2. Update channel sequentially to avoid 'invalidPart' error
+    // YouTube Data API strictly forbids combining brandingSettings with other parts like snippet
+    if (title !== undefined && title !== channel.snippet.title) {
+      await youtube.channels.update({
+        part: ['snippet'],
+        requestBody: {
+          id: channel.id,
+          snippet: {
+            ...channel.snippet,
+            title: title
+          }
+        }
+      })
     }
 
-    if (title) updateBody.snippet.title = title
-    if (description) updateBody.snippet.description = description
-
-    await youtube.channels.update({
-      part: ['snippet'],
-      requestBody: updateBody
-    })
+    if (description !== undefined && description !== channel.brandingSettings?.channel?.description) {
+      await youtube.channels.update({
+        part: ['brandingSettings'],
+        requestBody: {
+          id: channel.id,
+          brandingSettings: {
+            ...channel.brandingSettings,
+            channel: {
+              ...channel.brandingSettings?.channel,
+              description: description
+            }
+          }
+        }
+      })
+    }
 
     return { success: true }
   } catch (error: any) {
-    console.error('Channel update error:', error.message)
-    throw createError({ statusCode: 500, message: error.message })
+    const errorDetail = error.response?.data?.error || error.message
+    const errorMessage = typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail, null, 2)
+    console.error('YOUTUBE_API_ERROR_DETAIL:', errorMessage)
+    throw createError({ 
+      statusCode: error.response?.status || 500, 
+      message: errorMessage
+    })
   }
 })
