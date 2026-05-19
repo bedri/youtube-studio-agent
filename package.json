@@ -31,6 +31,7 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "@nuxt/test-utils": "^4.0.3",
+    "@types/gapi.client.youtube": "^3.0.4",
     "@types/nodemailer": "^8.0.0",
     "concurrently": "^9.2.1",
     "electron": "^42.1.0",

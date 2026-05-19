@@ -32,22 +32,21 @@ export default defineEventHandler(async (event) => {
   if (!campaigns) {
     // Fetch cached videos to assign mock campaigns
     let cachedVideos = (await storage.getItem('youtube:video_cache')) as any[] | null
+    let usingFallback = false
     
     if (!cachedVideos || cachedVideos.length === 0) {
+      usingFallback = true
       // Fallback mock videos if cache is empty
       cachedVideos = [
-        { id: 'mock1', snippet: { title: 'My Awesome Vlog', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } },
-        { id: 'mock2', snippet: { title: 'Nuxt 4 Tutorial', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } }
+        { id: 'mock1', snippet: { title: 'Örnek Video - Yükleniyor...', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } },
+        { id: 'mock2', snippet: { title: 'Örnek Eğitim Videosu', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } }
       ]
     }
 
-    if (!isOwner) {
-      cachedVideos = cachedVideos.filter(v => v.status?.privacyStatus !== 'private')
-    }
-
-    // Generate mock promotions for all available videos to show all campaigns
+    // Kullanıcı videolarını tekrar listede görmek istediği için otomatik üretimi geri açıyoruz.
     campaigns = cachedVideos.map((v, index) => {
-      const status = index % 3 === 0 ? 'ACTIVE' : index % 3 === 1 ? 'PAUSED' : 'PENDING'
+      // Tamamı PAUSED olarak gelsin ki kullanıcı istemeden aktif görünmesinler.
+      const status = 'PAUSED'
       return {
         id: `CAMP-DEMO-${index + 1001}`,
         videoId: v.id,
@@ -63,14 +62,16 @@ export default defineEventHandler(async (event) => {
         endDate: new Date(Date.now() + (10 - index) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       }
     })
-
-    // Persist in local storage
-    await storage.setItem(promotionsKey, campaigns)
+    
+    // Only persist if we have real data (not fallback)
+    if (!usingFallback) {
+      await storage.setItem(promotionsKey, campaigns)
+    }
   }
 
   return {
     campaigns,
     isDemoMode: true,
-    message: 'Google Ads Developer Token is required for real campaign management. Displaying demo data.'
+    message: 'Bu panel şu an için bir önizlemedir. Gerçek reklam entegrasyonları için Google Ads bağlantısı çok yakında eklenecektir.'
   }
 })

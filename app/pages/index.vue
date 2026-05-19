@@ -10,6 +10,7 @@ const activeMainTab = ref('content')
 const mainTabs = [
   { id: 'content', label: 'Content Management', icon: 'i-heroicons-rectangle-stack' },
   { id: 'analytics', label: 'Analytics', icon: 'i-heroicons-chart-bar' },
+  { id: 'ai-analytics', label: 'AI Insights & Strategy', icon: 'i-heroicons-sparkles' },
   { id: 'promotions', label: 'Promotions', icon: 'i-heroicons-megaphone' }
 ]
 
@@ -23,9 +24,442 @@ const { data: promotions, status: promotionsStatus, refresh: refreshPromotions }
   watch: [auth]
 })
 
+// Ollama state
+const ollamaOnline = ref(false)
+const ollamaModels = ref<any[]>([])
+const selectedModel = ref('gemma4:e2b')
+const isPullingModel = ref(false)
+const pullStatus = ref('')
+const pullProgress = ref(0)
+const pullSpeed = ref('')
+
+const isAnalyzing = ref(false)
+const analysisFocus = ref('')
+const analysisOutput = ref('')
+const currentAnalysisStep = ref(0)
+const analysisSteps = [
+  'Veritabanı kayıtları okunuyor...',
+  'Kanal istatistikleri ve trend verileri analiz ediliyor...',
+  'Süre ve format tatlı noktaları (sweet spots) hesaplanıyor...',
+  'Yerel modelden stratejik çıkarımlar sentezleniyor...'
+]
+
+const checkOllamaStatus = async () => {
+  try {
+    const res = await $fetch<any>('/api/ollama/status')
+    ollamaOnline.value = res.status === 'online'
+    ollamaModels.value = res.models || []
+    
+    const hasGemma = res.hasGemma
+    if (hasGemma) {
+      selectedModel.value = 'gemma4:e2b'
+    } else if (ollamaModels.value.length > 0 && selectedModel.value === 'gemma4:e2b') {
+      selectedModel.value = ollamaModels.value[0].name
+    }
+  } catch (e) {
+    ollamaOnline.value = false
+  }
+}
+
+const pullModel = async () => {
+  if (isPullingModel.value) return
+  isPullingModel.value = true
+  pullStatus.value = 'İndirme başlatılıyor...'
+  pullProgress.value = 0
+  pullSpeed.value = ''
+
+  try {
+    const response = await fetch('/api/ollama/pull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'gemma4:e2b' })
+    })
+
+    if (!response.ok) throw new Error('Pull request failed')
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('Readable stream not supported')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const data = JSON.parse(line)
+          if (data.status) {
+            pullStatus.value = data.status
+          }
+          if (data.completed && data.total) {
+            pullProgress.value = Math.round((data.completed / data.total) * 100)
+            const speedMbps = (data.completed / (1024 * 1024)).toFixed(1)
+            const totalMb = (data.total / (1024 * 1024)).toFixed(1)
+            pullSpeed.value = `${speedMbps} MB / ${totalMb} MB`
+          }
+        } catch (e) {
+        }
+      }
+    }
+    
+    pullStatus.value = 'İndirme tamamlandı!'
+    pullProgress.value = 100
+    await checkOllamaStatus()
+  } catch (e: any) {
+    pullStatus.value = `Hata: ${e.message}`
+  } finally {
+    isPullingModel.value = false
+  }
+}
+
+const runAnalysis = async () => {
+  if (isAnalyzing.value) return
+  isAnalyzing.value = true
+  analysisOutput.value = ''
+  currentAnalysisStep.value = 0
+
+  const stepInterval = setInterval(() => {
+    if (currentAnalysisStep.value < 3) {
+      currentAnalysisStep.value++
+    } else {
+      clearInterval(stepInterval)
+    }
+  }, 3500)
+
+  try {
+    const response = await fetch('/api/ollama/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        focus: analysisFocus.value
+      })
+    })
+
+    clearInterval(stepInterval)
+    if (!response.ok) throw new Error('Analysis request failed')
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('Readable stream not supported')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const data = JSON.parse(line)
+          if (data.response) {
+            analysisOutput.value += data.response
+          }
+        } catch (e) {
+        }
+      }
+    }
+  } catch (e: any) {
+    analysisOutput.value = `Hata: ${e.message}`
+  } finally {
+    isAnalyzing.value = false
+  }
+}
+
+const parseMarkdown = (markdown: string) => {
+  if (!markdown) return ''
+  return markdown
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/^#\s+(.+)$/gm, '<h1 class="text-2xl font-black text-white mt-6 mb-3 border-b border-white/5 pb-2">$1</h1>')
+    .replace(/^##\s+(.+)$/gm, '<h2 class="text-lg font-bold text-red-500 mt-5 mb-2 flex items-center gap-2">$1</h2>')
+    .replace(/^###\s+(.+)$/gm, '<h3 class="text-md font-semibold text-zinc-200 mt-4 mb-1">$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-black">$1</strong>')
+    .replace(/^\s*-\s+(.+)$/gm, '<li class="text-zinc-300 ml-5 list-disc my-1.5 leading-relaxed">$1</li>')
+    .replace(/\n/g, '<br>')
+}
+
+// AI Copywriter State
+const activeAiSubTab = ref('retrospective') // 'retrospective' or 'copywriter'
+const selectedCopyVideoId = ref('')
+const copyType = ref<'description' | 'campaign'>('description')
+const copyContext = ref('')
+const generatedCopy = ref('')
+const isGeneratingCopy = ref(false)
+const copySuccessToast = ref(false)
+const applySuccessToast = ref(false)
+
+// Comment Moderation State
+const selectedCommentVideoId = ref('')
+const rawComments = ref<any[]>([])
+const moderatedComments = ref<any[]>([])
+const isLoadingComments = ref(false)
+const isModeratingComments = ref(false)
+const replySuccessIds = ref<string[]>([])
+const replySubmittingIds = ref<string[]>([])
+
+// Global Localization State
+const selectedLocVideoId = ref('')
+const targetLocLang = ref('en')
+const isTranslating = ref(false)
+const translatedTitle = ref('')
+const translatedDescription = ref('')
+const isApplyingLoc = ref(false)
+
+const locLanguages = [
+  { value: 'en', label: 'İngilizce (English)' },
+  { value: 'de', label: 'Almanca (Deutsch)' },
+  { value: 'es', label: 'İspanyolca (Español)' },
+  { value: 'fr', label: 'Fransızca (Français)' },
+  { value: 'it', label: 'İtalyanca (Italiano)' },
+  { value: 'ja', label: 'Japonca (日本語)' },
+  { value: 'ar', label: 'Arapça (العربية)' }
+]
+
+const startLocalization = async () => {
+  const video = videos.value?.find((v: any) => v.id === selectedLocVideoId.value)
+  if (!video) return alert('Lütfen bir video seçin')
+  isTranslating.value = true
+  translatedTitle.value = ''
+  translatedDescription.value = ''
+  
+  try {
+    const res = await $fetch<any>('/api/ollama/translate', {
+      method: 'POST',
+      body: {
+        title: video.snippet.title,
+        description: video.snippet.description,
+        targetLang: locLanguages.find(l => l.value === targetLocLang.value)?.label || 'English'
+      }
+    })
+    
+    if (res.success) {
+      translatedTitle.value = res.translatedTitle
+      translatedDescription.value = res.translatedDescription
+    }
+  } catch (e: any) {
+    alert('Çeviri hatası: ' + e.message)
+  } finally {
+    isTranslating.value = false
+  }
+}
+
+const applyLocalization = async () => {
+  if (!selectedLocVideoId.value || !translatedTitle.value) return
+  isApplyingLoc.value = true
+  try {
+    await $fetch('/api/youtube/localize', {
+      method: 'POST',
+      body: {
+        videoId: selectedLocVideoId.value,
+        targetLang: targetLocLang.value,
+        title: translatedTitle.value,
+        description: translatedDescription.value
+      }
+    })
+    alert('Çeviri başarıyla YouTube kanalınıza uygulandı!')
+  } catch (e: any) {
+    alert('YouTube\\'a uygulama hatası: ' + e.message)
+  } finally {
+    isApplyingLoc.value = false
+  }
+}
+
+watch(videos, (newVideos) => {
+  if (newVideos && newVideos.length > 0) {
+    if (!selectedCopyVideoId.value) selectedCopyVideoId.value = newVideos[0].id
+    if (!selectedCommentVideoId.value) selectedCommentVideoId.value = newVideos[0].id
+    if (!selectedLocVideoId.value) selectedLocVideoId.value = newVideos[0].id
+  }
+}, { immediate: true })
+
+const loadAndModerateComments = async () => {
+  if (!selectedCommentVideoId.value) return
+  isLoadingComments.value = true
+  isModeratingComments.value = true
+  rawComments.value = []
+  moderatedComments.value = []
+  replySuccessIds.value = []
+
+  try {
+    const commentsRes = await $fetch<any[]>('/api/youtube/comments', {
+      query: { videoId: selectedCommentVideoId.value }
+    })
+    rawComments.value = commentsRes || []
+
+    if (rawComments.value.length === 0) {
+      isLoadingComments.value = false
+      isModeratingComments.value = false
+      return
+    }
+
+    isLoadingComments.value = false
+
+    const video = videos.value?.find((v: any) => v.id === selectedCommentVideoId.value)
+    const videoTitle = video?.snippet?.title || ''
+
+    const moderationRes = await $fetch<any[]>('/api/ollama/comments/moderate', {
+      method: 'POST',
+      body: {
+        comments: rawComments.value,
+        model: selectedModel.value,
+        videoTitle
+      }
+    })
+
+    moderatedComments.value = rawComments.value.map(c => {
+      const mod = moderationRes?.find((m: any) => m.commentId === c.commentId)
+      return {
+        ...c,
+        classification: mod?.classification || 'feedback',
+        rationale: mod?.rationale || 'Otomatik sınıflandırma.',
+        draftReply: mod?.draftReply || ''
+      }
+    })
+  } catch (e: any) {
+    alert(`Yorumlar analiz edilemedi: ${e.message}`)
+  } finally {
+    isLoadingComments.value = false
+    isModeratingComments.value = false
+  }
+}
+
+const submitReply = async (comment: any) => {
+  if (!comment.commentId || !comment.draftReply) return
+  replySubmittingIds.value.push(comment.commentId)
+
+  try {
+    const response = await $fetch<any>('/api/youtube/comments/reply', {
+      method: 'POST',
+      body: {
+        commentId: comment.commentId,
+        replyText: comment.draftReply
+      }
+    })
+
+    if (response.success) {
+      replySuccessIds.value.push(comment.commentId)
+    }
+  } catch (e: any) {
+    alert(`Yanıt gönderilemedi: ${e.message}`)
+  } finally {
+    replySubmittingIds.value = replySubmittingIds.value.filter(id => id !== comment.commentId)
+  }
+}
+
+const generateCopy = async () => {
+  if (!selectedCopyVideoId.value) return
+  isGeneratingCopy.value = true
+  generatedCopy.value = ''
+
+  try {
+    const response = await fetch('/api/ollama/copywrite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        videoId: selectedCopyVideoId.value,
+        type: copyType.value,
+        context: copyContext.value,
+        model: selectedModel.value
+      })
+    })
+
+    if (!response.ok) throw new Error('Copywriter request failed')
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('Readable stream not supported')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const data = JSON.parse(line)
+          if (data.response) {
+            generatedCopy.value += data.response
+          }
+        } catch (e) {
+        }
+      }
+    }
+  } catch (e: any) {
+    generatedCopy.value = `Hata: ${e.message}`
+  } finally {
+    isGeneratingCopy.value = false
+  }
+}
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text)
+  copySuccessToast.value = true
+  setTimeout(() => {
+    copySuccessToast.value = false
+  }, 3000)
+}
+
+const applyDescriptionToVideo = async () => {
+  if (!selectedCopyVideoId.value || !generatedCopy.value) return
+  isGeneratingCopy.value = true
+  try {
+    const response = await $fetch<any>('/api/youtube/batch-update', {
+      method: 'POST',
+      body: {
+        videoIds: [selectedCopyVideoId.value],
+        changes: {
+          description: generatedCopy.value
+        }
+      }
+    })
+    
+    if (response && response[0]?.status === 'success') {
+      applySuccessToast.value = true
+      setTimeout(() => {
+        applySuccessToast.value = false
+      }, 3000)
+      
+      // Update local description in cache too
+      if (videos.value) {
+        const video = videos.value.find((v: any) => v.id === selectedCopyVideoId.value)
+        if (video && video.snippet) {
+          video.snippet.description = generatedCopy.value
+        }
+      }
+    } else {
+      throw new Error(response[0]?.message || 'Update failed')
+    }
+  } catch (e: any) {
+    alert(`Açıklama güncellenemedi: ${e.message}`)
+  } finally {
+    isGeneratingCopy.value = false
+  }
+}
+
 watch(activeMainTab, (newVal) => {
   if (newVal === 'analytics' && !analytics.value && analyticsStatus.value !== 'pending') refreshAnalytics()
   if (newVal === 'promotions' && !promotions.value && promotionsStatus.value !== 'pending') refreshPromotions()
+  if (newVal === 'ai-analytics') checkOllamaStatus()
 })
 
 const selectedMetric = ref('views')
@@ -120,6 +554,25 @@ const launchPromotion = async () => {
   }
 }
 
+const togglePromotionStatus = async (camp: any) => {
+  if (camp.status === 'PENDING') return
+  const newStatus = camp.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE'
+  const oldStatus = camp.status
+  camp.status = '...' // temporary loading state
+  try {
+    const res = await $fetch<any>('/api/youtube/promotions/toggle', {
+      method: 'POST',
+      body: { campaignId: camp.id, status: newStatus }
+    })
+    if (res.success) {
+      camp.status = res.campaign.status
+    }
+  } catch (e: any) {
+    alert(`Status güncellenemedi: ${e.message}`)
+    camp.status = oldStatus
+  }
+}
+
 const isManualRefreshing = ref(false)
 const handleManualRefresh = async () => {
   isManualRefreshing.value = true
@@ -137,6 +590,7 @@ onMounted(() => {
 
   if (auth.value?.authenticated) {
     refreshVideos()
+    checkOllamaStatus()
     
     // Surgical update for view counts every 30 seconds
     setInterval(async () => {
@@ -863,12 +1317,22 @@ watch(isDeleteModalOpen, (val) => {
       <div v-else-if="promotions" class="space-y-8">
         <div class="flex justify-between items-center bg-zinc-900/50 p-6 rounded-2xl border border-white/5">
           <div>
-            <h2 class="text-xl font-bold text-white">Active Campaigns</h2>
+            <h2 class="text-xl font-bold text-white">Kampanyalarınız</h2>
             <p class="text-zinc-400 text-sm mt-1" v-if="promotions.isDemoMode">{{ promotions.message }}</p>
           </div>
-          <UButton color="primary" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" :disabled="auth?.isApiKey" class="btn-premium font-bold">Launch Promotion</UButton>
+          <UButton v-if="promotions.campaigns && promotions.campaigns.length > 0" color="primary" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" :disabled="auth?.isApiKey" class="btn-premium font-bold">Launch Promotion</UButton>
         </div>
-        <div class="grid md:grid-cols-2 gap-6">
+        
+        <div v-if="promotions.campaigns && promotions.campaigns.length === 0" class="flex flex-col items-center justify-center py-16 bg-zinc-900/20 rounded-2xl border border-white/5 border-dashed">
+          <div class="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+            <UIcon name="i-heroicons-megaphone" class="w-8 h-8 text-red-500" />
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2">Henüz Kampanya Yok</h3>
+          <p class="text-zinc-400 max-w-md text-center mb-6">Videolarınızı ön plana çıkarmak ve izlenmelerini artırmak için ilk kampanyanızı şimdi başlatın.</p>
+          <UButton color="primary" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" :disabled="auth?.isApiKey" class="btn-premium font-bold">Launch First Promotion</UButton>
+        </div>
+
+        <div v-else class="grid md:grid-cols-2 gap-6">
           <UCard v-for="camp in promotions.campaigns" :key="camp.id" class="glass-card relative overflow-hidden group">
             <div class="absolute inset-0 bg-gradient-to-r from-red-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div class="flex gap-4">
@@ -876,7 +1340,16 @@ watch(isDeleteModalOpen, (val) => {
               <div class="flex-1">
                 <div class="flex justify-between items-start">
                   <h3 class="font-bold text-white line-clamp-1">{{ camp.videoTitle || 'Promoted Video' }}</h3>
-                  <UBadge :color="camp.status === 'ACTIVE' ? 'green' : 'zinc'" variant="subtle">{{ camp.status }}</UBadge>
+                  <UBadge 
+                    :color="camp.status === 'ACTIVE' ? 'green' : (camp.status === 'PAUSED' ? 'yellow' : 'zinc')" 
+                    variant="subtle"
+                    class="transition select-none"
+                    :class="{ 'cursor-pointer hover:opacity-80': camp.status !== 'PENDING' }"
+                    @click="camp.status !== 'PENDING' && togglePromotionStatus(camp)"
+                  >
+                    {{ camp.status }}
+                    <UIcon v-if="camp.status !== 'PENDING' && camp.status !== '...'" name="i-heroicons-arrows-up-down" class="ml-1 w-3 h-3" />
+                  </UBadge>
                 </div>
                 <p class="text-xs text-zinc-500 mt-1">ID: {{ camp.id }} • {{ camp.dailyBudget }} {{ camp.currencyCode }}/day</p>
               </div>
@@ -888,6 +1361,634 @@ watch(isDeleteModalOpen, (val) => {
             </div>
           </UCard>
         </div>
+      </div>
+    </div>
+
+    <!-- AI Analytics Panel -->
+    <div v-if="auth?.authenticated" v-show="activeMainTab === 'ai-analytics'" class="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+      <div class="grid md:grid-cols-3 gap-8">
+        
+        <!-- System Configuration & Installation Status Card -->
+        <div class="md:col-span-1 space-y-6">
+          <UCard class="glass-card">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 text-red-500" />
+                <h3 class="font-bold text-white">Ollama Durumu</h3>
+              </div>
+            </template>
+            
+            <div class="space-y-4">
+              <!-- Online / Offline State -->
+              <div class="flex justify-between items-center p-3.5 bg-zinc-950/60 rounded-xl border border-white/5">
+                <span class="text-xs text-zinc-400 font-bold uppercase tracking-wider">Bağlantı</span>
+                <UBadge :color="ollamaOnline ? 'green' : 'red'" variant="subtle" class="font-black">
+                  {{ ollamaOnline ? 'ONLINE' : 'OFFLINE' }}
+                </UBadge>
+              </div>
+
+              <!-- Model Selection / Pulling Options -->
+              <div v-if="ollamaOnline" class="space-y-4">
+                <div class="space-y-2">
+                  <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Model Seçin</label>
+                  <USelectMenu 
+                    v-model="selectedModel" 
+                    :options="ollamaModels.map(m => m.name)" 
+                    class="w-full !bg-zinc-950/80 border-white/10" 
+                  />
+                  <p class="text-[10px] text-zinc-500 mt-1">Önerilen en hafif model: <strong>gemma4:e2b</strong></p>
+                </div>
+
+                <div v-if="!ollamaModels.some(m => m.name === 'gemma4:e2b' || m.name.startsWith('gemma4:e2b'))" class="border-t border-white/5 pt-4">
+                  <p class="text-xs text-zinc-400 mb-3 leading-relaxed">Sisteminizde <strong>gemma4:e2b</strong> (Gemma 4 Edge 2B) modeli bulunamadı. CPU ve düşük özellikli bilgisayarlar için ideal modeldir.</p>
+                  <UButton 
+                    color="red" 
+                    block 
+                    icon="i-heroicons-arrow-down-tray" 
+                    :loading="isPullingModel" 
+                    @click="pullModel"
+                    class="btn-premium font-bold"
+                  >
+                    gemma4:e2b Modelini İndir
+                  </UButton>
+                </div>
+              </div>
+
+              <!-- Offline Guide -->
+              <div v-else class="space-y-4">
+                <div class="p-3.5 bg-red-950/20 border border-red-500/20 rounded-xl">
+                  <p class="text-xs text-red-400 leading-relaxed font-semibold">Yerel Ollama sunucusuna bağlanılamadı. Lütfen Ollama'nın çalıştığından emin olun.</p>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Ollama Kurulumu (Mac / Linux):</p>
+                  <div class="bg-zinc-950 p-2.5 rounded-lg border border-white/5 font-mono text-[10px] select-all break-all leading-normal text-zinc-300">
+                    curl -fsSL https://ollama.com/install.sh | sh
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Servisi Başlatmak İçin:</p>
+                  <div class="bg-zinc-950 p-2.5 rounded-lg border border-white/5 font-mono text-[10px] select-all break-all leading-normal text-zinc-300">
+                    ollama serve
+                  </div>
+                </div>
+                <UButton 
+                  color="zinc" 
+                  block 
+                  variant="subtle"
+                  icon="i-heroicons-arrow-path" 
+                  @click="checkOllamaStatus"
+                  class="font-bold"
+                >
+                  Tekrar Dene
+                </UButton>
+              </div>
+            </div>
+          </UCard>
+
+          <!-- Model Pulling Live Terminal Log -->
+          <div v-if="isPullingModel || (pullStatus && pullProgress < 100)" class="p-4 bg-zinc-950 border border-white/5 rounded-2xl space-y-3 font-mono text-xs">
+            <div class="flex justify-between items-center text-[10px] text-zinc-500 border-b border-white/5 pb-2">
+              <span class="uppercase tracking-wider">Terminal Output</span>
+              <span>{{ pullSpeed || 'connecting...' }}</span>
+            </div>
+            <div class="text-zinc-300 animate-pulse text-[11px]">{{ pullStatus }}</div>
+            <div v-if="pullProgress > 0" class="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-red-500 h-1.5 rounded-full transition-all duration-300" :style="{ width: `${pullProgress}%` }"></div>
+            </div>
+            <div class="text-right text-[10px] text-zinc-500">{{ pullProgress }}%</div>
+          </div>
+        </div>
+
+        <!-- Strategy / Copywriter Output Panel -->
+        <div class="md:col-span-2 space-y-6">
+          
+          <!-- Sub-Tab Navigation -->
+          <div class="flex p-0.5 bg-zinc-950 rounded-xl border border-white/5 w-fit">
+            <button 
+              type="button" 
+              @click="activeAiSubTab = 'retrospective'"
+              class="px-4 py-1.5 text-xs rounded-lg transition font-bold cursor-pointer select-none flex items-center gap-1.5"
+              :class="activeAiSubTab === 'retrospective' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+            >
+              <UIcon name="i-heroicons-presentation-chart-line" class="w-4 h-4" />
+              Retrospektif Analiz
+            </button>
+            <button 
+              type="button" 
+              @click="activeAiSubTab = 'copywriter'"
+              class="px-4 py-1.5 text-xs rounded-lg transition font-bold cursor-pointer select-none flex items-center gap-1.5"
+              :class="activeAiSubTab === 'copywriter' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+            >
+              <UIcon name="i-heroicons-pencil-square" class="w-4 h-4" />
+              AI Metin Yazarı (Copywriter)
+            </button>
+            <button 
+              type="button" 
+              @click="activeAiSubTab = 'moderation'"
+              class="px-4 py-1.5 text-xs rounded-lg transition font-bold cursor-pointer select-none flex items-center gap-1.5"
+              :class="activeAiSubTab === 'moderation' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+            >
+              <UIcon name="i-heroicons-chat-bubble-left-right" class="w-4 h-4" />
+              Yorum Moderasyonu
+            </button>
+            <button 
+              type="button" 
+              @click="activeAiSubTab = 'localization'"
+              class="px-4 py-1.5 text-xs rounded-lg transition font-bold cursor-pointer select-none flex items-center gap-1.5"
+              :class="activeAiSubTab === 'localization' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+            >
+              <UIcon name="i-heroicons-globe-alt" class="w-4 h-4" />
+              Global Yerelleştirme
+            </button>
+          </div>
+
+          <!-- Strategy Retrospective Output Card -->
+          <UCard v-show="activeAiSubTab === 'retrospective'" class="glass-card">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-sparkles" class="w-5 h-5 text-red-500" />
+                  <h3 class="font-bold text-white">Akıllı Trend & Korelasyon Analizi</h3>
+                </div>
+                <UButton 
+                  v-if="ollamaOnline && ollamaModels.length > 0"
+                  color="primary" 
+                  icon="i-heroicons-sparkles" 
+                  :loading="isAnalyzing" 
+                  @click="runAnalysis"
+                  class="btn-premium font-bold shadow-lg"
+                >
+                  Derin Analizi Başlat
+                </UButton>
+              </div>
+            </template>
+
+            <!-- Analysis Custom Focus Input -->
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Analiz Odak Noktası (Opsiyonel)</label>
+                <UInput 
+                  v-model="analysisFocus" 
+                  placeholder="Örn: Abone kazanımını hızlandırmak için hangi içerik formatına ağırlık vermeliyim?" 
+                  class="w-full !bg-zinc-950/60 border-white/5" 
+                  :disabled="isAnalyzing"
+                />
+              </div>
+
+              <!-- Loader Animation when Analyzing -->
+              <div v-if="isAnalyzing && !analysisOutput" class="flex flex-col items-center py-20 space-y-6">
+                <div class="relative w-16 h-16">
+                  <div class="absolute inset-0 rounded-full border-4 border-red-500/10"></div>
+                  <div class="absolute inset-0 rounded-full border-4 border-t-red-500 animate-spin"></div>
+                </div>
+                <div class="text-center space-y-2">
+                  <p class="font-bold text-white animate-pulse">Kanal Raporu Sentezleniyor...</p>
+                  <p class="text-xs text-zinc-500 italic max-w-xs">{{ analysisSteps[currentAnalysisStep] }}</p>
+                </div>
+              </div>
+
+              <!-- Output Display -->
+              <div v-else-if="analysisOutput" class="p-6 bg-zinc-950/60 border border-white/5 rounded-2xl max-h-[60vh] overflow-y-auto font-sans leading-relaxed text-zinc-300 text-sm">
+                <div v-html="parseMarkdown(analysisOutput)"></div>
+                
+                <!-- Generating cursor effect when typing -->
+                <span v-if="isAnalyzing" class="inline-block w-1.5 h-4 bg-red-500 animate-pulse ml-1 align-middle"></span>
+              </div>
+
+              <!-- Empty state before starting -->
+              <div v-else class="flex flex-col items-center justify-center py-20 text-center text-zinc-500 space-y-3">
+                <UIcon name="i-heroicons-presentation-chart-bar" class="w-12 h-12 text-zinc-700" />
+                <div>
+                  <h4 class="font-bold text-zinc-400">Analiz Raporu Hazır Değil</h4>
+                  <p class="text-xs max-w-xs mx-auto mt-1 leading-relaxed">Sol panelden yerel LLM modelinizi seçtikten sonra 'Derin Analizi Başlat' butonuna tıklayarak kanal verilerinizin retrospektif raporunu sentezleyebilirsiniz.</p>
+                </div>
+              </div>
+            </div>
+          </UCard>
+
+          <!-- AI Copywriter Card -->
+          <UCard v-show="activeAiSubTab === 'copywriter'" class="glass-card">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-pencil-square" class="w-5 h-5 text-red-500" />
+                  <h3 class="font-bold text-white">Otonom Kampanya & Açıklama Metni Yazarı</h3>
+                </div>
+                <UButton 
+                  v-if="ollamaOnline && ollamaModels.length > 0 && selectedCopyVideoId"
+                  color="primary" 
+                  icon="i-heroicons-sparkles" 
+                  :loading="isGeneratingCopy" 
+                  @click="generateCopy"
+                  class="btn-premium font-bold shadow-lg"
+                >
+                  Metin Üret
+                </UButton>
+              </div>
+            </template>
+
+            <div class="space-y-6">
+              <!-- Selection Settings Grid -->
+              <div class="grid md:grid-cols-2 gap-4">
+                <!-- Video Selector -->
+                <div class="space-y-2">
+                  <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Video Seçin</label>
+                  <USelectMenu 
+                    v-model="selectedCopyVideoId" 
+                    :options="videos || []" 
+                    value-attribute="id"
+                    option-attribute="snippet.title"
+                    class="w-full !bg-zinc-950/60 border-white/5" 
+                    :disabled="isGeneratingCopy"
+                    placeholder="Analiz edilecek videoyu seçin..."
+                  />
+                </div>
+
+                <!-- Copy Type Selection -->
+                <div class="space-y-2">
+                  <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Metin Türü</label>
+                  <div class="flex bg-zinc-950 p-0.5 rounded-lg border border-white/5 h-[36px] items-center">
+                    <button 
+                      type="button"
+                      class="flex-1 text-[11px] font-bold py-1 px-2.5 rounded-md transition text-center cursor-pointer select-none" 
+                      :class="copyType === 'description' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'"
+                      @click="copyType = 'description'"
+                      :disabled="isGeneratingCopy"
+                    >
+                      SEO Açıklama Metni
+                    </button>
+                    <button 
+                      type="button"
+                      class="flex-1 text-[11px] font-bold py-1 px-2.5 rounded-md transition text-center cursor-pointer select-none" 
+                      :class="copyType === 'campaign' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'"
+                      @click="copyType = 'campaign'"
+                      :disabled="isGeneratingCopy"
+                    >
+                      Kampanya Reklam Metni
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Context/Prompt Notes -->
+              <div class="space-y-2">
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Ek Bağlam / Yönergeler (Opsiyonel)</label>
+                <UInput 
+                  v-model="copyContext" 
+                  placeholder="Örn: İndirim kodu ekle: KOD20, web sitemizi tanıt..." 
+                  class="w-full !bg-zinc-950/60 border-white/5" 
+                  :disabled="isGeneratingCopy"
+                />
+              </div>
+
+              <!-- Generated Output Container -->
+              <div v-if="generatedCopy" class="space-y-4">
+                <div class="flex justify-between items-center text-xs text-zinc-400">
+                  <span>Üretilen Sonuç:</span>
+                  <div class="flex gap-2">
+                    <!-- Copy to Clipboard Button -->
+                    <UButton 
+                      size="xs" 
+                      color="zinc" 
+                      variant="subtle"
+                      icon="i-heroicons-clipboard-document" 
+                      @click="copyToClipboard(generatedCopy)"
+                      class="cursor-pointer select-none font-bold"
+                    >
+                      {{ copySuccessToast ? 'Kopyalandı!' : 'Kopyala' }}
+                    </UButton>
+                    
+                    <!-- Apply to YouTube Button (Only for description mode) -->
+                    <UButton 
+                      v-if="copyType === 'description'"
+                      size="xs" 
+                      color="green" 
+                      icon="i-heroicons-cloud-arrow-up" 
+                      :disabled="auth?.isApiKey || isGeneratingCopy"
+                      @click="applyDescriptionToVideo"
+                      class="cursor-pointer select-none font-bold"
+                    >
+                      {{ applySuccessToast ? 'Güncellendi!' : 'Videoya Uygula' }}
+                    </UButton>
+                  </div>
+                </div>
+
+                <div class="p-6 bg-zinc-950/60 border border-white/5 rounded-2xl max-h-[50vh] overflow-y-auto font-sans leading-relaxed text-zinc-300 text-sm">
+                  <div v-if="copyType === 'campaign'" v-html="parseMarkdown(generatedCopy)"></div>
+                  <div v-else class="whitespace-pre-wrap leading-relaxed">{{ generatedCopy }}</div>
+                  
+                  <!-- Typing cursor effect -->
+                  <span v-if="isGeneratingCopy" class="inline-block w-1.5 h-4 bg-red-500 animate-pulse ml-1 align-middle"></span>
+                </div>
+
+                <div v-if="auth?.isApiKey && copyType === 'description'" class="p-2.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-xl text-[10px] flex gap-2 items-center">
+                  <UIcon name="i-heroicons-exclamation-triangle" class="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>API Key kimlik doğrulaması kullandığınız için doğrudan video güncelleme işlemi devre dışıdır. Metni kopyalayabilirsiniz.</span>
+                </div>
+              </div>
+
+              <!-- Loader when generating first chunk -->
+              <div v-else-if="isGeneratingCopy" class="flex flex-col items-center py-16 space-y-4">
+                <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-red-500" />
+                <p class="text-xs text-zinc-400 animate-pulse">Yerel model metni oluşturuyor, lütfen bekleyin...</p>
+              </div>
+
+              <!-- Empty state -->
+              <div v-else class="flex flex-col items-center justify-center py-16 text-center text-zinc-500 space-y-3">
+                <UIcon name="i-heroicons-pencil-square" class="w-12 h-12 text-zinc-700" />
+                <div>
+                  <h4 class="font-bold text-zinc-400">Üretilmiş Metin Yok</h4>
+                  <p class="text-xs max-w-xs mx-auto mt-1 leading-relaxed">Hedef videoyu seçin, talimatlarınızı ekleyin ve local LLM ile otonom metin üretmek için 'Metin Üret' butonuna tıklayın.</p>
+                </div>
+              </div>
+            </div>
+          </UCard>
+
+          <!-- Comment Moderation Card -->
+          <UCard v-show="activeAiSubTab === 'moderation'" class="glass-card">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-red-500" />
+                  <h3 class="font-bold text-white">Yorum Moderasyonu & Yapay Zeka Taslak Yanıtları</h3>
+                </div>
+                <UButton 
+                  v-if="ollamaOnline && ollamaModels.length > 0 && selectedCommentVideoId"
+                  color="primary" 
+                  icon="i-heroicons-arrow-path" 
+                  :loading="isLoadingComments || isModeratingComments" 
+                  @click="loadAndModerateComments"
+                  class="btn-premium font-bold shadow-lg"
+                >
+                  Yorumları Analiz Et
+                </UButton>
+              </div>
+            </template>
+
+            <div class="space-y-6">
+              <!-- Selection Settings -->
+              <div class="space-y-2 max-w-md">
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Video Seçin</label>
+                <USelectMenu 
+                  v-model="selectedCommentVideoId" 
+                  :options="videos || []" 
+                  value-attribute="id"
+                  option-attribute="snippet.title"
+                  class="w-full !bg-zinc-950/60 border-white/5" 
+                  :disabled="isLoadingComments || isModeratingComments"
+                  placeholder="Yorumları incelenecek videoyu seçin..."
+                />
+              </div>
+
+              <!-- Loading & Moderating States -->
+              <div v-if="isLoadingComments" class="flex flex-col items-center py-16 space-y-4">
+                <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-red-500" />
+                <p class="text-xs text-zinc-400 animate-pulse">YouTube API üzerinden yorumlar çekiliyor...</p>
+              </div>
+
+              <div v-else-if="isModeratingComments" class="flex flex-col items-center py-16 space-y-4">
+                <div class="relative w-12 h-12">
+                  <div class="absolute inset-0 rounded-full border-4 border-red-500/10"></div>
+                  <div class="absolute inset-0 rounded-full border-4 border-t-red-500 animate-spin"></div>
+                </div>
+                <p class="text-xs text-zinc-400 animate-pulse">Yerel yapay zeka yorumları spam/soru/öneri olarak sınıflandırıyor ve taslak yanıtlar hazırlıyor...</p>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="moderatedComments.length === 0" class="flex flex-col items-center justify-center py-16 text-center text-zinc-500 space-y-3">
+                <UIcon name="i-heroicons-chat-bubble-bottom-center-text" class="w-12 h-12 text-zinc-700" />
+                <div>
+                  <h4 class="font-bold text-zinc-400">Yorum Analizi Yapılmadı</h4>
+                  <p class="text-xs max-w-xs mx-auto mt-1 leading-relaxed">Hedef videoyu seçin ve yorumları yerel LLM ile denetlemek için 'Yorumları Analiz Et' butonuna tıklayın.</p>
+                </div>
+              </div>
+
+              <!-- Comments List Display -->
+              <div v-else class="space-y-6">
+                <!-- Summary Badges -->
+                <div class="flex gap-4 p-4 bg-zinc-950/60 border border-white/5 rounded-xl text-xs font-bold">
+                  <span class="text-zinc-400">Toplam Çekilen: <span class="text-white font-mono">{{ moderatedComments.length }}</span></span>
+                  <span class="text-green-500">Geri Bildirimler: <span class="font-mono">{{ moderatedComments.filter(c => c.classification === 'feedback').length }}</span></span>
+                  <span class="text-yellow-500">Sorular: <span class="font-mono">{{ moderatedComments.filter(c => c.classification === 'question').length }}</span></span>
+                  <span class="text-red-500">Spam / Troll: <span class="font-mono">{{ moderatedComments.filter(c => c.classification === 'spam_troll').length }}</span></span>
+                </div>
+
+                <!-- High Quality Section (Questions & Feedback) -->
+                <div class="space-y-4">
+                  <h4 class="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <UIcon name="i-heroicons-check-circle" class="w-4 h-4 text-green-500" />
+                    Yapıcı Yorumlar & Taslak Yanıtlar
+                  </h4>
+                  
+                  <div v-if="moderatedComments.filter(c => c.classification !== 'spam_troll').length === 0" class="p-4 bg-zinc-900/40 border border-white/5 rounded-xl text-xs text-zinc-500 italic text-center">
+                    Bu videoda yapıcı veya soru içeren yorum bulunamadı.
+                  </div>
+
+                  <div 
+                    v-for="comment in moderatedComments.filter(c => c.classification !== 'spam_troll')" 
+                    :key="comment.commentId"
+                    class="p-5 bg-zinc-950/60 border border-white/5 rounded-2xl space-y-4 hover:border-white/10 transition"
+                  >
+                    <!-- User Profile & Tag Header -->
+                    <div class="flex justify-between items-start gap-4">
+                      <div class="flex items-center gap-3">
+                        <UAvatar :src="comment.authorProfileImageUrl" :alt="comment.author" size="sm" class="border border-white/10" />
+                        <div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-white">{{ comment.author }}</span>
+                            <span class="text-[10px] text-zinc-500 font-mono">{{ new Date(comment.publishedAt).toLocaleDateString('tr-TR') }}</span>
+                          </div>
+                          <p class="text-xs text-zinc-300 mt-1 leading-relaxed">{{ comment.text }}</p>
+                        </div>
+                      </div>
+                      <UBadge :color="comment.classification === 'question' ? 'yellow' : 'green'" variant="subtle" class="font-black text-[10px]">
+                        {{ comment.classification === 'question' ? 'SORU' : 'DESTEK' }}
+                      </UBadge>
+                    </div>
+
+                    <!-- AI Classification Rationale & Draft Reply -->
+                    <div class="pl-11 space-y-3">
+                      <!-- AI Reason -->
+                      <div class="text-[10px] text-zinc-400 font-semibold italic flex items-center gap-1.5">
+                        <UIcon name="i-heroicons-information-circle" class="w-3.5 h-3.5 text-zinc-500" />
+                        AI Gerekçesi: {{ comment.rationale }}
+                      </div>
+
+                      <!-- Draft Reply Box -->
+                      <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                          <UIcon name="i-heroicons-sparkles" class="w-3.5 h-3.5 text-red-500" />
+                          Taslak Yanıt
+                        </label>
+                        <UTextarea 
+                          v-model="comment.draftReply" 
+                          rows="2" 
+                          class="w-full !bg-zinc-900/60 border-white/5 text-xs text-zinc-200" 
+                          placeholder="Yanıt boş bırakılamaz..."
+                          :disabled="replySuccessIds.includes(comment.commentId)"
+                        />
+                      </div>
+
+                      <!-- Actions -->
+                      <div class="flex justify-end gap-2">
+                        <UButton 
+                          v-if="!replySuccessIds.includes(comment.commentId)"
+                          size="xs" 
+                          color="green" 
+                          icon="i-heroicons-paper-airplane" 
+                          :loading="replySubmittingIds.includes(comment.commentId)"
+                          :disabled="auth?.isApiKey || !comment.draftReply"
+                          @click="submitReply(comment)"
+                          class="cursor-pointer select-none font-bold"
+                        >
+                          Gönder
+                        </UButton>
+                        <span v-else class="text-xs text-green-400 font-bold flex items-center gap-1.5 py-1">
+                          <UIcon name="i-heroicons-check-circle" class="w-4 h-4" />
+                          Yanıt YouTube'a Gönderildi
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Spam / Troll Section -->
+                <div class="space-y-4 border-t border-white/5 pt-6">
+                  <h4 class="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <UIcon name="i-heroicons-shield-exclamation" class="w-4 h-4 text-red-500" />
+                    Spam & Troll Olarak İşaretlenenler (Gizlendi)
+                  </h4>
+                  
+                  <div v-if="moderatedComments.filter(c => c.classification === 'spam_troll').length === 0" class="p-4 bg-zinc-900/40 border border-white/5 rounded-xl text-xs text-zinc-500 italic text-center">
+                    Spam veya troll yorum bulunamadı.
+                  </div>
+
+                  <div v-else class="space-y-2.5">
+                    <div 
+                      v-for="comment in moderatedComments.filter(c => c.classification === 'spam_troll')" 
+                      :key="comment.commentId"
+                      class="p-4 bg-red-950/5 border border-red-500/10 rounded-xl flex justify-between items-center text-xs opacity-60 hover:opacity-100 transition"
+                    >
+                      <div class="flex items-center gap-3">
+                        <UAvatar :src="comment.authorProfileImageUrl" :alt="comment.author" size="sm" class="border border-white/10" />
+                        <div>
+                          <span class="font-bold text-white">{{ comment.author }}</span>
+                          <p class="text-zinc-400 text-[11px] truncate max-w-md mt-0.5">{{ comment.text }}</p>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <UBadge color="red" variant="subtle" class="font-bold text-[9px] uppercase">SPAM / TROLL</UBadge>
+                        <p class="text-[10px] text-red-400/80 italic mt-0.5">{{ comment.rationale }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </UCard>
+        </div>
+
+        <!-- Global Localization Card -->
+        <div v-show="activeAiSubTab === 'localization'" class="space-y-6">
+          <UCard class="glass-card">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-globe-alt" class="w-5 h-5 text-red-500" />
+                  <h3 class="font-bold text-white">Global Yerelleştirme & Otomatik Çeviri</h3>
+                </div>
+              </div>
+            </template>
+            
+            <div class="space-y-6">
+              <!-- Configuration Section -->
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <label class="text-xs font-bold text-zinc-400 uppercase">Video Seçin</label>
+                  <USelectMenu
+                    v-model="selectedLocVideoId"
+                    :options="videos || []"
+                    option-attribute="snippet.title"
+                    value-attribute="id"
+                    placeholder="Videonuzu Seçin"
+                    class="w-full"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label class="text-xs font-bold text-zinc-400 uppercase">Hedef Dil</label>
+                  <USelectMenu
+                    v-model="targetLocLang"
+                    :options="locLanguages"
+                    option-attribute="label"
+                    value-attribute="value"
+                    placeholder="Dil Seçin"
+                    class="w-full"
+                  />
+                </div>
+              </div>
+
+              <!-- Action Button -->
+              <div class="flex justify-end">
+                <UButton 
+                  color="primary" 
+                  size="lg" 
+                  class="font-bold"
+                  :loading="isTranslating"
+                  :disabled="!selectedLocVideoId || !targetLocLang"
+                  @click="startLocalization"
+                >
+                  <UIcon name="i-heroicons-language" class="w-5 h-5 mr-1" />
+                  {{ isTranslating ? 'Yerel LLM Çeviriyor...' : 'Çeviriyi Başlat' }}
+                </UButton>
+              </div>
+
+              <!-- Translation Output Section -->
+              <div v-if="translatedTitle || isTranslating" class="mt-6 pt-6 border-t border-white/5 space-y-4">
+                <h4 class="text-sm font-bold text-zinc-300 uppercase">A/B Kıyaslama (Orijinal vs. Çeviri)</h4>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                  <!-- Original -->
+                  <div class="bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                    <div class="text-[10px] uppercase font-bold text-zinc-500 mb-2">Orijinal (Türkçe)</div>
+                    <div class="font-bold text-white mb-2">{{ videos?.find(v => v.id === selectedLocVideoId)?.snippet?.title }}</div>
+                    <div class="text-sm text-zinc-400 whitespace-pre-wrap line-clamp-6">{{ videos?.find(v => v.id === selectedLocVideoId)?.snippet?.description }}</div>
+                  </div>
+
+                  <!-- Translated -->
+                  <div class="bg-red-900/10 p-4 rounded-xl border border-red-500/20 relative">
+                    <div class="text-[10px] uppercase font-bold text-red-400 mb-2">Çeviri ({{ locLanguages.find(l => l.value === targetLocLang)?.label }})</div>
+                    
+                    <div v-if="isTranslating" class="absolute inset-0 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm rounded-xl">
+                      <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 text-red-500 animate-spin" />
+                    </div>
+
+                    <div v-else>
+                      <div class="font-bold text-white mb-2" contenteditable="true" @blur="translatedTitle = $event.target.innerText">{{ translatedTitle }}</div>
+                      <div class="text-sm text-zinc-300 whitespace-pre-wrap" contenteditable="true" @blur="translatedDescription = $event.target.innerText">{{ translatedDescription }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Apply to YouTube Button -->
+                <div class="flex justify-end pt-4">
+                  <UButton 
+                    v-if="!isTranslating && translatedTitle"
+                    color="green" 
+                    size="lg" 
+                    class="font-bold w-full md:w-auto"
+                    :loading="isApplyingLoc"
+                    :disabled="auth?.isApiKey"
+                    @click="applyLocalization"
+                  >
+                    <UIcon name="i-heroicons-cloud-arrow-up" class="w-5 h-5 mr-1" />
+                    {{ auth?.isApiKey ? 'OAuth Bağlantısı Gerekli' : 'YouTube\\'a Uygula (Localize)' }}
+                  </UButton>
+                </div>
+              </div>
+            </div>
+          </UCard>
+        </div>
+
       </div>
     </div>
 
