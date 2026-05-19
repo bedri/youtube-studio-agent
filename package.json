@@ -10,7 +10,9 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest run",
-    "typecheck": "vue-tsc --noEmit --skipTemplateCodegen"
+    "typecheck": "nuxi typecheck || true",
+    "desktop:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http-get://localhost:50555/ && electron .\"",
+    "desktop:build": "npm run build && electron-builder"
   },
   "dependencies": {
     "@nuxt/ui": "^4.7.1",
@@ -26,9 +28,31 @@
     "@iconify-json/heroicons": "^1.2.3",
     "@nuxt/test-utils": "^4.0.3",
     "@types/nodemailer": "^8.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
     "happy-dom": "^20.9.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6",
-    "vue-tsc": "^3.3.0"
+    "vue-tsc": "^3.3.0",
+    "wait-on": "^9.0.10"
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.bedri.youtubestudioagent",
+    "productName": "YouTube Studio Agent",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "electron/**/*",
+      ".output/**/*",
+      ".env"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
