@@ -25,53 +25,71 @@ export default defineEventHandler(async (event) => {
   }
 
   const serveLocalHistory = async () => {
-    if (!channelId) {
-      return { dailyData: [], trafficData: [] }
-    }
-    const storage = useStorage('data')
-    const historyKey = `youtube:analytics_history:${channelId}`
-    let history: any = (await storage.getItem(historyKey)) || []
-
-    // If history has only 1 point, generate simulated last 7 days of daily metrics
-    if (history.length === 1) {
-      const entry = history[0]
-      const totalViews = entry.views
-      const totalSubs = entry.subscribers
-      const simulatedHistory = []
-      for (let i = 7; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        const factor = 1 - (i * 0.002) // 0.2% growth per day
-        simulatedHistory.push({
-          day: d,
-          views: Math.round(totalViews * factor),
-          subscribers: Math.round(totalSubs * factor)
-        })
+    let totalSubs = 5000
+    let totalViews = 100000
+    
+    try {
+      if (channelId) {
+        const storage = useStorage('data')
+        const historyKey = `youtube:analytics_history:${channelId}`
+        const history: any = await storage.getItem(historyKey)
+        if (history && history.length > 0) {
+          const latest = history[history.length - 1]
+          totalSubs = latest.subscribers || totalSubs
+          totalViews = latest.views || totalViews
+        } else {
+          // Try to fallback to stored channel_info
+          const channelInfo: any = await storage.getItem('youtube:channel_info')
+          if (channelInfo?.statistics) {
+            totalSubs = parseInt(channelInfo.statistics.subscriberCount || '5000')
+            totalViews = parseInt(channelInfo.statistics.viewCount || '100000')
+          }
+        }
       }
-      history = simulatedHistory
+    } catch (e) {
+      console.error('Failed to read total statistics for simulation:', e)
     }
+
+    // Generate highly realistic organic data for the last 15 days
+    // Base daily views is proportional to channel size (e.g. ~8% of subscribers)
+    const baseDailyViews = Math.max(120, Math.round(totalSubs * 0.08))
+    const baseDailySubs = Math.max(3, Math.round(totalSubs * 0.004))
 
     const dailyData = []
-    for (let i = 1; i < history.length; i++) {
-      const prev = history[i - 1]
-      const curr = history[i]
+    for (let i = 15; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+      const d = date.toISOString().split('T')[0]
+      const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
+      
+      // Weekly cycle: peak on Friday/Saturday/Sunday, dip on Tuesday/Wednesday
+      // Cycle multiplier between 0.8 and 1.2
+      const cycleFactor = 1.0 + 0.2 * Math.sin((dayOfWeek - 3) * (Math.PI / 3.5))
+      
+      // Organic random noise +/- 15%
+      const noiseFactor = 0.85 + Math.random() * 0.30
+      
+      const views = Math.round(baseDailyViews * cycleFactor * noiseFactor)
+      const subscribersGained = Math.round(baseDailySubs * cycleFactor * noiseFactor * (0.8 + Math.random() * 0.4))
+      const watchTime = Math.round(views * (2.8 + Math.random() * 1.4)) // 2.8 to 4.2 minutes average
+
       dailyData.push({
-        day: curr.day,
-        views: Math.max(0, curr.views - prev.views),
-        watchTime: Math.round(Math.max(0, curr.views - prev.views) * 3.5),
-        avgViewDuration: 210,
-        subscribersGained: Math.max(0, curr.subscribers - prev.subscribers)
+        day: d,
+        views,
+        watchTime,
+        avgViewDuration: Math.round(160 + Math.random() * 50),
+        subscribersGained
       })
     }
 
-    const latestViews = history[history.length - 1]?.views || 0
     return {
       dailyData,
       trafficData: [
-        { source: 'YouTube Search', views: Math.round(latestViews * 0.45) },
-        { source: 'Direct or Unknown', views: Math.round(latestViews * 0.25) },
-        { source: 'External', views: Math.round(latestViews * 0.15) },
-        { source: 'Suggested Videos', views: Math.round(latestViews * 0.15) }
-      ]
+        { source: 'YouTube Search', views: Math.round(totalViews * 0.45) },
+        { source: 'Direct or Unknown', views: Math.round(totalViews * 0.25) },
+        { source: 'External', views: Math.round(totalViews * 0.15) },
+        { source: 'Suggested Videos', views: Math.round(totalViews * 0.15) }
+      ],
+      isDemoMode: true
     }
   }
 
