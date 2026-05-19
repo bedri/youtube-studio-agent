@@ -577,7 +577,13 @@ const isManualRefreshing = ref(false)
 const handleManualRefresh = async () => {
   isManualRefreshing.value = true
   try {
-    await refreshVideos({ query: { refresh: 'true' } })
+    const freshVideos = await $fetch<any[]>('/api/youtube/videos', {
+      query: { refresh: 'true' }
+    })
+    videos.value = freshVideos
+  } catch (e: any) {
+    console.error('Failed to refresh videos:', e)
+    alert(`Videolar yenilenemedi: ${e.message}`)
   } finally {
     isManualRefreshing.value = false
   }
@@ -667,7 +673,10 @@ const filteredVideos = computed(() => {
   let result = videos.value.filter(v => {
     const durationStr = v.contentDetails?.duration || ''
     const matches = durationStr.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-    if (!matches) return false
+    if (!matches) {
+      // If duration is not in standard PT format (e.g. live stream, upcoming, or >24h format like P1D), default to showing it in the main Videos tab
+      return activeTab.value !== 'shorts'
+    }
     
     const hours = parseInt(matches[1] || '0')
     const minutes = parseInt(matches[2] || '0')
