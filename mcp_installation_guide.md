@@ -69,11 +69,15 @@ To add the local YouTube Agent MCP server to OpenCode:
 ### 3. Ollama Terminal (TUI) Integration
 
 If you want to run a local Ollama model (e.g. `gemma4:26b`) and connect it directly to your local MCP server via the command line without using an IDE or GUI:
-1. Run the following command in your terminal to spin up an interactive chat session using the `ollmcp` bridge:
+1. First, install the `ollmcp` tool using the Python package manager `pip`:
    ```bash
-   npx -y ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   pip install ollmcp
    ```
-2. This creates an interactive TUI chat interface in your terminal where the Gemma model can directly execute your YouTube Agent tools.
+2. Next, launch the interactive terminal user interface (TUI):
+   ```bash
+   ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ```
+3. This will open an interactive chat session in your terminal, enabling your local Ollama model to directly execute YouTube Agent tools.
 
 ---
 

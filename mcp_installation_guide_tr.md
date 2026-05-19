@@ -69,11 +69,15 @@ OpenCode kodlama aracınıza yerel YouTube Agent MCP sunucusunu eklemek için:
 ### 3. Ollama Terminal (TUI) Entegrasyonu
 
 Eğer herhangi bir IDE veya grafik arayüz kullanmadan, terminal üzerinden yerel Ollama modelinizi (örneğin `gemma4:26b`) doğrudan yerel MCP sunucumuzla konuşturmak isterseniz:
-1. Terminalde aşağıdaki komutu çalıştırarak `ollmcp` aracı üzerinden yerel modelinizi sunucuya bağlayabilirsiniz:
+1. İlk olarak Python paket yöneticisi `pip` ile `ollmcp` aracını kurun:
    ```bash
-   npx -y ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   pip install ollmcp
    ```
-2. Bu komut terminal üzerinde etkileşimli bir TUI sohbet ekranı açar ve Gemma modeli doğrudan bizim YouTube Agent MCP araçlarımızı çağırabilir.
+2. Ardından aşağıdaki komutla etkileşimli terminal arayüzünü (TUI) başlatın:
+   ```bash
+   ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ```
+3. Bu komut terminal üzerinde etkileşimli bir sohbet ekranı açar ve Ollama modeliniz doğrudan bizim YouTube Agent MCP araçlarımızı çağırabilir.
 
 ---
 
