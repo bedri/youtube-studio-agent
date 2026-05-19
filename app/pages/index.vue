@@ -272,7 +272,7 @@ const applyLocalization = async () => {
     })
     alert('Çeviri başarıyla YouTube kanalınıza uygulandı!')
   } catch (e: any) {
-    alert('YouTube\\'a uygulama hatası: ' + e.message)
+    alert("YouTube'a uygulama hatası: " + e.message)
   } finally {
     isApplyingLoc.value = false
   }
@@ -1981,7 +1981,7 @@ watch(isDeleteModalOpen, (val) => {
                     @click="applyLocalization"
                   >
                     <UIcon name="i-heroicons-cloud-arrow-up" class="w-5 h-5 mr-1" />
-                    {{ auth?.isApiKey ? 'OAuth Bağlantısı Gerekli' : 'YouTube\\'a Uygula (Localize)' }}
+                    {{ auth?.isApiKey ? "OAuth Bağlantısı Gerekli" : "YouTube'a Uygula (Localize)" }}
                   </UButton>
                 </div>
               </div>
