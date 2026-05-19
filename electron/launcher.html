@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Studio Agent - Dev Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    header {
+      background: linear-gradient(to right, #0b0f19, #030712);
+      border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      -webkit-app-region: drag;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-glow {
+      width: 12px;
+      height: 12px;
+      background-color: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 12px #ef4444;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .status-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-badge.online {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+    .status-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: currentColor;
+    }
+    .status-badge.online .dot {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.3; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(0.9); }
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      overflow: hidden;
+      background-color: #030712;
+    }
+    .sidebar {
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .control-card {
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .btn {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .btn-start {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .btn-start:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+    }
+    .btn-stop {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+    .btn-stop:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+    }
+    .btn-open {
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .btn-open:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .stat-item {
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #9ca3af;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .stat-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+    }
+    .console-container {
+      display: flex;
+      flex-direction: column;
+      background-color: #010409;
+      height: 100%;
+      overflow: hidden;
+    }
+    .console-header {
+      background-color: #0d1117;
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .console-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #8b949e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .console-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #238636;
+    }
+    .console-clear {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #58a6ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .console-clear:hover {
+      text-decoration: underline;
+    }
+    .console-viewport {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .console-line {
+      margin-bottom: 4px;
+    }
+    .console-err {
+      color: #ff7b72;
+    }
+    .console-info {
+      color: #58a6ff;
+    }
+    .console-success {
+      color: #56d364;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <h1>YOUTUBE_STUDIO_AGENT_DEV_CENTER</h1>
+    </div>
+    <div id="statusBadge" class="status-badge">
+      <div class="dot"></div>
+      <span id="statusText">Offline</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="sidebar">
+      <div>
+        <div class="section-title">Process Operations</div>
+        <div class="control-card">
+          <button id="startBtn" class="btn btn-start">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Start Dev Server
+          </button>
+          
+          <button id="stopBtn" class="btn btn-stop" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+            Stop Dev Server
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">App Window</div>
+        <div class="control-card">
+          <button id="openBtn" class="btn btn-open" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Launch Browser Window
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">System Metrics</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">CPU Load</span>
+            <span id="cpuVal" class="stat-val">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Mem usage</span>
+            <span id="memVal" class="stat-val">-- MB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="console-container">
+      <div class="console-header">
+        <div class="console-title">
+          <div class="console-dot"></div>
+          live_terminal_feed
+        </div>
+        <button id="clearBtn" class="console-clear">clear_feed</button>
+      </div>
+      <div id="consoleViewport" class="console-viewport">
+        <div class="console-line console-info">[System] Control Center Initialized. Press "Start Dev Server" to spin up the local Nuxt stack.</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const openBtn = document.getElementById('openBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const consoleViewport = document.getElementById('consoleViewport');
+    
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const cpuVal = document.getElementById('cpuVal');
+    const memVal = document.getElementById('memVal');
+
+    // Handle Start Dev Server
+    startBtn.addEventListener('click', () => {
+      ipcRenderer.send('start-server');
+      appendLine('[System] Booting Nuxt Development Server...', 'info');
+      startBtn.disabled = true;
+    });
+
+    // Handle Stop Dev Server
+    stopBtn.addEventListener('click', () => {
+      ipcRenderer.send('stop-server');
+      appendLine('[System] Stopping Server Process...', 'err');
+      stopBtn.disabled = true;
+    });
+
+    // Handle Open Application Window
+    openBtn.addEventListener('click', () => {
+      ipcRenderer.send('open-app');
+      appendLine('[System] Launching browser window...', 'success');
+    });
+
+    // Clear feed
+    clearBtn.addEventListener('click', () => {
+      consoleViewport.innerHTML = '';
+      appendLine('[System] Log feed cleared.', 'info');
+    });
+
+    // Append log line
+    function appendLine(text, type = '') {
+      const line = document.createElement('div');
+      line.className = 'console-line';
+      if (type) line.classList.add(`console-${type}`);
+      line.textContent = text;
+      consoleViewport.appendChild(line);
+      consoleViewport.scrollTop = consoleViewport.scrollHeight;
+    }
+
+    // Monitor State Updates
+    ipcRenderer.on('server-status', (event, { running, logs, port }) => {
+      if (running) {
+        statusBadge.classList.add('online');
+        statusText.textContent = `Online: ${port}`;
+        stopBtn.disabled = false;
+        startBtn.disabled = true;
+        openBtn.disabled = false;
+      } else {
+        statusBadge.classList.remove('online');
+        statusText.textContent = 'Offline';
+        stopBtn.disabled = true;
+        startBtn.disabled = false;
+        openBtn.disabled = true;
+      }
+    });
+
+    // Log feedback
+    ipcRenderer.on('server-log', (event, { text, type }) => {
+      appendLine(text, type);
+    });
+
+    // System Metrics Updates
+    ipcRenderer.on('sys-metrics', (event, { cpu, memory }) => {
+      cpuVal.textContent = `${cpu}%`;
+      memVal.textContent = memory;
+    });
+
+    // Fetch initial status
+    ipcRenderer.send('get-status');
+  </script>
+</body>
+</html>
