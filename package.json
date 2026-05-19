@@ -14,7 +14,7 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "typecheck": "nuxi typecheck || true",
-    "desktop:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http-get://localhost:50555/ && electron .\"",
+    "desktop:dev": "NODE_ENV=development electron .",
     "desktop:build": "npm run build && electron-builder",
     "all": "npm run build && npm run desktop:build && npm run test && npx nuxi typecheck"
   },
