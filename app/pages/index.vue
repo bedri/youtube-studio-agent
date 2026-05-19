@@ -1250,11 +1250,11 @@ watch(isDeleteModalOpen, (val) => {
     <div v-if="auth?.authenticated" v-show="activeMainTab === 'analytics'" class="space-y-8 animate-[fadeIn_0.5s_ease-out]">
       <div v-if="analyticsStatus === 'pending'" class="flex justify-center py-20"><UIcon name="i-heroicons-arrow-path" class="w-10 h-10 animate-spin text-red-500" /></div>
       <div v-else-if="analytics" class="space-y-8">
-        <div v-if="analytics.isDemoMode" class="p-3.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-xl text-xs flex gap-2.5 items-center">
+        <div v-if="analytics.error" class="p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex gap-2.5 items-center">
           <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4 flex-shrink-0" />
           <div>
-            <p class="font-bold">Estimating Channel Performance Insights</p>
-            <p class="text-zinc-400 mt-0.5">We cannot fetch official reports because YouTube Analytics API is either not enabled or the current session is read-only. Displaying estimated trends scaled to your channel size ({{ auth?.statistics?.subscriberCount ? formatNumber(auth.statistics.subscriberCount) : '5,000' }} subscribers).</p>
+            <p class="font-bold">Analytics Verisi Alınamadı</p>
+            <p class="text-red-300/80 mt-0.5">{{ analytics.error }}</p>
           </div>
         </div>
 
