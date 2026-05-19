@@ -701,7 +701,20 @@ const filteredVideos = computed(() => {
   }))
 })
 
+const currentPage = ref(1)
+const itemsPerPage = ref(12)
+
+const paginatedVideos = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredVideos.value.slice(start, end)
+})
+
 const activeTab = ref('videos')
+
+watch([activeTab, searchQuery], () => {
+  currentPage.value = 1
+})
 
 const toggleSelection = (id: string) => {
   const index = selectedVideos.value.indexOf(id)
@@ -1171,7 +1184,7 @@ watch(isDeleteModalOpen, (val) => {
 
         <UCard class="glass-card !bg-zinc-900/20 overflow-hidden" :body-class="['!p-0']">
           <UTable 
-            :data="filteredVideos" 
+            :data="paginatedVideos" 
             :columns="columns"
             :loading="videosStatus === 'pending'"
             @row-click="({ row }) => toggleSelection(row.original.id)"
@@ -1252,6 +1265,19 @@ watch(isDeleteModalOpen, (val) => {
             </template>
           </UTable>
         </UCard>
+
+        <div v-if="filteredVideos.length > itemsPerPage" class="flex justify-center mt-6">
+          <UPagination
+            v-model:page="currentPage"
+            :total="filteredVideos.length"
+            :items-per-page="itemsPerPage"
+            size="sm"
+            color="primary"
+            variant="outline"
+            active-color="primary"
+            active-variant="solid"
+          />
+        </div>
       </main>
     </div>
 
