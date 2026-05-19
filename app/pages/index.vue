@@ -7,6 +7,70 @@ const { data: videos, status: videosStatus, refresh: refreshVideos } = await use
   watch: [auth]
 })
 
+const activeMainTab = ref('content')
+const mainTabs = [
+  { id: 'content', label: 'Content Management', icon: 'i-heroicons-rectangle-stack' },
+  { id: 'analytics', label: 'Analytics', icon: 'i-heroicons-chart-bar' },
+  { id: 'promotions', label: 'Promotions', icon: 'i-heroicons-megaphone' }
+]
+
+const { data: analytics, status: analyticsStatus, refresh: refreshAnalytics } = await useFetch('/api/youtube/analytics', {
+  immediate: false,
+  watch: [auth]
+})
+
+const { data: promotions, status: promotionsStatus, refresh: refreshPromotions } = await useFetch('/api/youtube/promotions', {
+  immediate: false,
+  watch: [auth]
+})
+
+watch(activeMainTab, (newVal) => {
+  if (newVal === 'analytics' && !analytics.value && analyticsStatus.value !== 'pending') refreshAnalytics()
+  if (newVal === 'promotions' && !promotions.value && promotionsStatus.value !== 'pending') refreshPromotions()
+})
+
+const chartOptions = computed(() => ({
+  chart: { type: 'area', toolbar: { show: false }, background: 'transparent', fontFamily: 'Inter, sans-serif' },
+  theme: { mode: 'dark' },
+  stroke: { curve: 'smooth', width: 3 },
+  fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.1, stops: [0, 90, 100] } },
+  xaxis: { categories: analytics.value?.dailyData?.map((d: any) => d.day) || [], labels: { style: { colors: '#9ca3af' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+  yaxis: { labels: { style: { colors: '#9ca3af' }, formatter: (v: number) => Math.round(v) } },
+  grid: { borderColor: '#333', strokeDashArray: 4 },
+  colors: ['#ef4444']
+}))
+
+const chartSeries = computed(() => [{ name: 'Views', data: analytics.value?.dailyData?.map((d: any) => d.views) || [] }])
+
+const trafficChartOptions = computed(() => ({
+  chart: { type: 'donut', background: 'transparent' },
+  theme: { mode: 'dark' },
+  labels: analytics.value?.trafficData?.map((d: any) => d.source.replace('EXT_URL', 'External').replace('RELATED_VIDEO', 'Suggested').replace('YT_SEARCH', 'Search')) || [],
+  colors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'],
+  stroke: { show: false },
+  dataLabels: { enabled: false },
+  legend: { position: 'bottom', labels: { colors: '#9ca3af' } }
+}))
+
+const trafficChartSeries = computed(() => analytics.value?.trafficData?.map((d: any) => d.views) || [])
+
+const isLaunchModalOpen = ref(false)
+const promotionForm = reactive({ videoId: '', dailyBudget: 10, durationDays: 7, targetLocations: '' })
+const isLaunching = ref(false)
+
+const launchPromotion = async () => {
+  isLaunching.value = true
+  try {
+    await $fetch('/api/youtube/promotions', { method: 'POST', body: promotionForm })
+    isLaunchModalOpen.value = false
+    refreshPromotions()
+  } catch(e) {
+    console.error(e)
+  } finally {
+    isLaunching.value = false
+  }
+}
+
 const isManualRefreshing = ref(false)
 const handleManualRefresh = async () => {
   isManualRefreshing.value = true
@@ -327,7 +391,22 @@ watch(isDeleteModalOpen, (val) => {
       </div>
     </div>
 
-    <div v-if="auth?.authenticated" class="grid lg:grid-cols-3 gap-8">
+    <!-- Main Navigation Tabs -->
+    <div v-if="auth?.authenticated" class="flex items-center gap-2 bg-zinc-900/50 p-1.5 rounded-xl border border-white/5 w-fit">
+      <button 
+        v-for="tab in mainTabs" 
+        :key="tab.id"
+        @click="activeMainTab = tab.id"
+        class="px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2"
+        :class="activeMainTab === tab.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-zinc-400 hover:text-white hover:bg-white/5'"
+      >
+        <UIcon :name="tab.icon" class="w-4 h-4" />
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- Content Management Panel -->
+    <div v-if="auth?.authenticated" v-show="activeMainTab === 'content'" class="grid lg:grid-cols-3 gap-8">
       <!-- Sidebar: Controls -->
       <aside class="space-y-6">
         <UCard class="glass-card">
@@ -522,6 +601,75 @@ watch(isDeleteModalOpen, (val) => {
       </main>
     </div>
 
+    <!-- Analytics Panel -->
+    <div v-if="auth?.authenticated" v-show="activeMainTab === 'analytics'" class="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+      <div v-if="analyticsStatus === 'pending'" class="flex justify-center py-20"><UIcon name="i-heroicons-arrow-path" class="w-10 h-10 animate-spin text-red-500" /></div>
+      <div v-else-if="analytics" class="space-y-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <UCard class="glass-card">
+            <h4 class="text-xs text-zinc-400 font-bold uppercase tracking-wider">Total Views (30d)</h4>
+            <p class="text-3xl font-black text-white mt-2">{{ formatNumber(analytics.dailyData.reduce((a, b) => a + b.views, 0)) }}</p>
+          </UCard>
+          <UCard class="glass-card">
+            <h4 class="text-xs text-zinc-400 font-bold uppercase tracking-wider">Watch Time (mins)</h4>
+            <p class="text-3xl font-black text-white mt-2">{{ formatNumber(analytics.dailyData.reduce((a, b) => a + b.watchTime, 0)) }}</p>
+          </UCard>
+          <UCard class="glass-card">
+            <h4 class="text-xs text-zinc-400 font-bold uppercase tracking-wider">Avg Duration</h4>
+            <p class="text-3xl font-black text-white mt-2">{{ Math.round(analytics.dailyData.reduce((a, b) => a + b.avgViewDuration, 0) / (analytics.dailyData.length || 1)) }}s</p>
+          </UCard>
+          <UCard class="glass-card">
+            <h4 class="text-xs text-zinc-400 font-bold uppercase tracking-wider">Subs Gained</h4>
+            <p class="text-3xl font-black text-green-400 mt-2">+{{ formatNumber(analytics.dailyData.reduce((a, b) => a + b.subscribersGained, 0)) }}</p>
+          </UCard>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-8">
+          <UCard class="glass-card lg:col-span-2">
+            <template #header><h3 class="font-bold text-lg">Daily Views</h3></template>
+            <ClientOnly><apexchart type="area" height="350" :options="chartOptions" :series="chartSeries"></apexchart></ClientOnly>
+          </UCard>
+          <UCard class="glass-card lg:col-span-1">
+            <template #header><h3 class="font-bold text-lg">Traffic Sources</h3></template>
+            <ClientOnly><apexchart type="donut" height="350" :options="trafficChartOptions" :series="trafficChartSeries"></apexchart></ClientOnly>
+          </UCard>
+        </div>
+      </div>
+    </div>
+
+    <!-- Promotions Panel -->
+    <div v-if="auth?.authenticated" v-show="activeMainTab === 'promotions'" class="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+      <div v-if="promotionsStatus === 'pending'" class="flex justify-center py-20"><UIcon name="i-heroicons-arrow-path" class="w-10 h-10 animate-spin text-red-500" /></div>
+      <div v-else-if="promotions" class="space-y-8">
+        <div class="flex justify-between items-center bg-zinc-900/50 p-6 rounded-2xl border border-white/5">
+          <div>
+            <h2 class="text-xl font-bold text-white">Active Campaigns</h2>
+            <p class="text-zinc-400 text-sm mt-1" v-if="promotions.isDemoMode">{{ promotions.message }}</p>
+          </div>
+          <UButton color="red" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" class="btn-premium font-bold">Launch Promotion</UButton>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+          <UCard v-for="camp in promotions.campaigns" :key="camp.id" class="glass-card relative overflow-hidden group">
+            <div class="absolute inset-0 bg-gradient-to-r from-red-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="flex gap-4">
+              <img :src="camp.thumbnailUrl" class="w-24 h-16 object-cover rounded-lg border border-white/10" />
+              <div class="flex-1">
+                <div class="flex justify-between items-start">
+                  <h3 class="font-bold text-white line-clamp-1">{{ camp.videoTitle || 'Promoted Video' }}</h3>
+                  <UBadge :color="camp.status === 'ACTIVE' ? 'green' : 'zinc'" variant="subtle">{{ camp.status }}</UBadge>
+                </div>
+                <p class="text-xs text-zinc-500 mt-1">ID: {{ camp.id }} • {{ camp.dailyBudget }} {{ camp.currencyCode }}/day</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mt-6">
+              <div><p class="text-xs text-zinc-500 uppercase font-bold">Impressions</p><p class="text-lg font-black">{{ formatNumber(camp.impressions) }}</p></div>
+              <div><p class="text-xs text-zinc-500 uppercase font-bold">Clicks</p><p class="text-lg font-black">{{ formatNumber(camp.clicks) }}</p></div>
+              <div><p class="text-xs text-zinc-500 uppercase font-bold">Cost</p><p class="text-lg font-black text-red-400">${{ camp.cost.toFixed(2) }}</p></div>
+            </div>
+          </UCard>
+        </div>
+      </div>
+    </div>
+
     <!-- Empty State -->
     <div v-else-if="!auth?.authenticated" class="flex flex-col items-center justify-center py-20 space-y-6">
       <div class="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center text-red-500 animate-pulse">
@@ -639,6 +787,50 @@ watch(isDeleteModalOpen, (val) => {
             <div class="flex justify-end gap-3 pt-6 border-t border-white/5">
               <UButton color="zinc" variant="ghost" @click="isChannelModalOpen = false">Cancel</UButton>
               <UButton type="submit" color="red" :loading="isChannelUpdating" class="btn-premium px-8">Save Changes</UButton>
+            </div>
+          </form>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Launch Promotion Modal -->
+    <UModal v-model:open="isLaunchModalOpen" :ui="{ overlay: 'bg-black/80 backdrop-blur-xl' }">
+      <template #content>
+        <UCard class="glass-card !bg-zinc-950 shadow-2xl">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-megaphone" class="w-5 h-5 text-red-500" />
+              <h3 class="font-bold text-white">Launch Ad Promotion</h3>
+            </div>
+          </template>
+
+          <form @submit.prevent="launchPromotion" class="space-y-6 py-4">
+            <UFormField label="Select Video to Promote">
+              <USelectMenu 
+                v-model="promotionForm.videoId" 
+                :items="videos?.filter((v: any) => v.status?.privacyStatus !== 'private').map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
+                value-attribute="value"
+                placeholder="Select a video..."
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="Daily Budget ($)">
+                <UInput type="number" v-model="promotionForm.dailyBudget" min="1" placeholder="10" />
+              </UFormField>
+              <UFormField label="Duration (Days)">
+                <UInput type="number" v-model="promotionForm.durationDays" min="1" placeholder="7" />
+              </UFormField>
+            </div>
+
+            <UFormField label="Target Locations (Optional)">
+              <UInput v-model="promotionForm.targetLocations" placeholder="e.g. United States, UK" />
+            </UFormField>
+
+            <div class="flex justify-end gap-3 pt-6 border-t border-white/5">
+              <UButton color="zinc" variant="ghost" @click="isLaunchModalOpen = false">Cancel</UButton>
+              <UButton type="submit" color="red" :loading="isLaunching" class="btn-premium px-8" :disabled="!promotionForm.videoId">Launch Campaign</UButton>
             </div>
           </form>
         </UCard>

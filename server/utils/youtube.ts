@@ -11,7 +11,8 @@ export const useYouTubeClient = () => {
 
   return {
     oauth2Client,
-    youtube: google.youtube({ version: 'v3', auth: oauth2Client })
+    youtube: google.youtube({ version: 'v3', auth: oauth2Client }),
+    youtubeAnalytics: google.youtubeAnalytics({ version: 'v2', auth: oauth2Client })
   }
 }
 
