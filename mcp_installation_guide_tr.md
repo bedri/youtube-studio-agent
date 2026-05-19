@@ -66,7 +66,18 @@ OpenCode kodlama aracınıza yerel YouTube Agent MCP sunucusunu eklemek için:
 
 ---
 
-### 3. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
+### 3. Ollama Terminal (TUI) Entegrasyonu
+
+Eğer herhangi bir IDE veya grafik arayüz kullanmadan, terminal üzerinden yerel Ollama modelinizi (örneğin `gemma4:26b`) doğrudan yerel MCP sunucumuzla konuşturmak isterseniz:
+1. Terminalde aşağıdaki komutu çalıştırarak `ollmcp` aracı üzerinden yerel modelinizi sunucuya bağlayabilirsiniz:
+   ```bash
+   npx -y ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ```
+2. Bu komut terminal üzerinde etkileşimli bir TUI sohbet ekranı açar ve Gemma modeli doğrudan bizim YouTube Agent MCP araçlarımızı çağırabilir.
+
+---
+
+### 4. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
 
 Cursor üzerinde kullandığınız yapay zekanın (Gemini veya Claude) yerel API'lerinizle konuşmasını sağlamak için:
 1. Cursor uygulamasında **Settings** (Ayarlar) > **Features** > **MCP** sayfasına gidin.
@@ -79,7 +90,7 @@ Cursor üzerinde kullandığınız yapay zekanın (Gemini veya Claude) yerel API
 
 ---
 
-### 4. VS Code Entegrasyonu (Cline / Claude Dev Eklentisi)
+### 5. VS Code Entegrasyonu (Cline / Claude Dev Eklentisi)
 
 Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentisiyle çalışıyorsanız:
 1. `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` dosyasını favori editörünüzde açın.
@@ -100,7 +111,7 @@ Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentis
 
 ---
 
-### 5. VS Code Entegrasyonu (Continue Eklentisi)
+### 6. VS Code Entegrasyonu (Continue Eklentisi)
 
 **Continue** eklentisi ile yerel MCP sunucusunu bağlamak için:
 1. `~/.continue/config.json` dosyasını açın.
@@ -119,7 +130,7 @@ Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentis
 
 ---
 
-### 6. Claude Desktop Entegrasyonu
+### 7. Claude Desktop Entegrasyonu
 
 Eğer Anthropic'in resmi masaüstü uygulamasını kullanıyorsanız:
 1. `~/.config/Claude/claude_desktop_config.json` dosyasını açın (yoksa oluşturun).
@@ -140,7 +151,7 @@ Eğer Anthropic'in resmi masaüstü uygulamasını kullanıyorsanız:
 
 ---
 
-### 7. Web AI Studio / Gemini Web Entegrasyonu (OpenAPI / Function Calling)
+### 8. Web AI Studio / Gemini Web Entegrasyonu (OpenAPI / Function Calling)
 
 Bulut tabanlı servislerin (`gemini.google.com` veya `aistudio.google.com`) yerel makinenize erişebilmesi için yerel sunucunuzu dış dünyaya açmanız gerekir:
 1. Terminalden `ngrok` veya `localtunnel` kullanarak port `50555`'i tünelleyin:

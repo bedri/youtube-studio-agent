@@ -66,7 +66,18 @@ To add the local YouTube Agent MCP server to OpenCode:
 
 ---
 
-### 3. Cursor IDE Integration (with Gemini or Claude)
+### 3. Ollama Terminal (TUI) Integration
+
+If you want to run a local Ollama model (e.g. `gemma4:26b`) and connect it directly to your local MCP server via the command line without using an IDE or GUI:
+1. Run the following command in your terminal to spin up an interactive chat session using the `ollmcp` bridge:
+   ```bash
+   npx -y ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ```
+2. This creates an interactive TUI chat interface in your terminal where the Gemma model can directly execute your YouTube Agent tools.
+
+---
+
+### 4. Cursor IDE Integration (with Gemini or Claude)
 
 To enable the AI model running in Cursor to call your local APIs:
 1. Open Cursor and go to **Settings** > **Features** > **MCP**.
@@ -79,7 +90,7 @@ To enable the AI model running in Cursor to call your local APIs:
 
 ---
 
-### 4. VS Code Integration (Cline / Claude Dev Extension)
+### 5. VS Code Integration (Cline / Claude Dev Extension)
 
 If you are using the **Cline** extension in VS Code with your Gemini/Claude API Key:
 1. Open the global Cline configuration file in your editor:
@@ -101,7 +112,7 @@ If you are using the **Cline** extension in VS Code with your Gemini/Claude API 
 
 ---
 
-### 5. VS Code Integration (Continue Extension)
+### 6. VS Code Integration (Continue Extension)
 
 To load the MCP server using **Continue** in VS Code:
 1. Open your `~/.continue/config.json` configuration file.
@@ -120,7 +131,7 @@ To load the MCP server using **Continue** in VS Code:
 
 ---
 
-### 6. Claude Desktop Integration
+### 7. Claude Desktop Integration
 
 If you use the official Claude Desktop app by Anthropic:
 1. Open your Claude Desktop settings file: `~/.config/Claude/claude_desktop_config.json` (create it if it doesn't exist).
@@ -141,7 +152,7 @@ If you use the official Claude Desktop app by Anthropic:
 
 ---
 
-### 7. Web AI Studio / Gemini Web Integration (via OpenAPI / Function Calling)
+### 8. Web AI Studio / Gemini Web Integration (via OpenAPI / Function Calling)
 
 To expose your local API to cloud-based services (`gemini.google.com` or `aistudio.google.com`), you need to tunnel your local port:
 1. Run `ngrok` or `localtunnel` to create a public HTTPS gateway for port `50555`:
