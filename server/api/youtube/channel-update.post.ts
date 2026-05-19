@@ -8,8 +8,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
   }
 
-  const { oauth2Client, youtube } = useYouTubeClient()
-  oauth2Client.setCredentials(tokens)
+  const { youtube, isApiKey } = useYouTubeClient(event, tokens)
+  if (isApiKey) {
+    throw createError({ statusCode: 403, message: 'Write operations are forbidden with API Key authentication.' })
+  }
 
   try {
     // 1. Get current channel info

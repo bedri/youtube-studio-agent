@@ -4,10 +4,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const { oauth2Client, youtube } = useYouTubeClient()
-  oauth2Client.setCredentials(tokens)
+  const { youtube, isApiKey } = useYouTubeClient(event, tokens)
 
-  const isOwner = !!getCookie(event, 'youtube_tokens')
+  const isOwner = !!getCookie(event, 'youtube_tokens') && !isApiKey
 
   // Check cache first
   const query = getQuery(event)
@@ -20,10 +19,19 @@ export default defineEventHandler(async (event) => {
   }
 
   // 1. Get channel info to find the uploads playlist ID
-  const channelRes = await youtube.channels.list({
-    part: ['contentDetails', 'snippet'],
-    mine: true
-  })
+  let channelRes
+  if (isApiKey) {
+    const channelId = getCookie(event, 'youtube_channel_id')
+    channelRes = await youtube.channels.list({
+      part: ['contentDetails', 'snippet'],
+      id: channelId ? [channelId] : undefined
+    })
+  } else {
+    channelRes = await youtube.channels.list({
+      part: ['contentDetails', 'snippet'],
+      mine: true
+    })
+  }
 
   const channel = channelRes.data.items?.[0]
   const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads

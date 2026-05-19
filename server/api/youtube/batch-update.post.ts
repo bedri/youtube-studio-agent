@@ -7,8 +7,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const { oauth2Client, youtube } = useYouTubeClient()
-  oauth2Client.setCredentials(tokens)
+  const { youtube, isApiKey } = useYouTubeClient(event, tokens)
+  if (isApiKey) {
+    throw createError({ statusCode: 403, statusMessage: 'Write operations are forbidden with API Key authentication.' })
+  }
 
   const isOwner = !!getCookie(event, 'youtube_tokens')
   const results = []

@@ -40,7 +40,7 @@
     "vue-tsc": "^3.3.0",
     "wait-on": "^9.0.10"
   },
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "build": {
     "appId": "com.bedri.youtubestudioagent",
     "productName": "YouTube Studio Agent",
@@ -55,7 +55,13 @@
     "linux": {
       "target": [
         "AppImage"
-      ]
+      ],
+      "icon": "electron/icon.png",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "youtube-studio-agent"
+        }
+      }
     }
   }
 }

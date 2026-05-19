@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const isOwner = !!getCookie(event, 'youtube_tokens')
+  const isOwner = !!getCookie(event, 'youtube_tokens') && !tokens.apiKey
 
   // Validate the video existence and privacy status
   let cachedVideos = await useStorage('data').getItem('youtube:video_cache') as any[] | null

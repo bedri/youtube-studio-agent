@@ -1,15 +1,19 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, screen } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 const http = require('http')
+
+app.name = 'youtube-studio-agent'
 
 let mainWindow
 let serverProcess
 
 function createWindow() {
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: Math.min(width, 1600),
+    height: height,
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true

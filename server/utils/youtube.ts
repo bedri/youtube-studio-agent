@@ -1,6 +1,6 @@
 import { google } from 'googleapis'
 
-export const useYouTubeClient = () => {
+export const useYouTubeClient = (event?: any, tokens?: any) => {
   const config = useRuntimeConfig()
   
   const oauth2Client = new google.auth.OAuth2(
@@ -9,14 +9,43 @@ export const useYouTubeClient = () => {
     config.youtubeRedirectUri
   )
 
+  let auth: any = oauth2Client
+  let isApiKey = false
+
+  if (tokens && tokens.apiKey) {
+    auth = tokens.apiKey
+    isApiKey = true
+  } else if (event) {
+    const apiKey = getCookie(event, 'youtube_api_key')
+    if (apiKey) {
+      auth = apiKey
+      isApiKey = true
+    }
+  }
+
+  if (!isApiKey && tokens) {
+    try {
+      oauth2Client.setCredentials(tokens)
+    } catch (e) {
+      console.error('[YouTube Util] Failed to set credentials:', e)
+    }
+  }
+
   return {
     oauth2Client,
-    youtube: google.youtube({ version: 'v3', auth: oauth2Client }),
-    youtubeAnalytics: google.youtubeAnalytics({ version: 'v2', auth: oauth2Client })
+    youtube: google.youtube({ version: 'v3', auth }),
+    youtubeAnalytics: google.youtubeAnalytics({ version: 'v2', auth }),
+    isApiKey
   }
 }
 
 export const getYouTubeTokens = async (event: any) => {
+  // Check if API key cookie exists first
+  const apiKey = getCookie(event, 'youtube_api_key')
+  if (apiKey) {
+    return { apiKey }
+  }
+
   const tokensRaw = getCookie(event, 'youtube_tokens')
   if (tokensRaw) {
     try {

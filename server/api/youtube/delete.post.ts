@@ -1,24 +1,18 @@
-import { google } from 'googleapis'
-
 export default defineEventHandler(async (event) => {
   const { videoIds } = await readBody(event)
   if (!videoIds || !Array.isArray(videoIds)) {
     throw createError({ statusCode: 400, message: 'Invalid video IDs' })
   }
 
-  const session = await getSession(event, { password: process.env.SESSION_PASSWORD || 'default_session_password_32_chars_long' })
-  if (!session.data.tokens) {
+  const tokens = await getYouTubeTokens(event)
+  if (!tokens) {
     throw createError({ statusCode: 401, message: 'Unauthorized' })
   }
 
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.YOUTUBE_CLIENT_ID,
-    process.env.YOUTUBE_CLIENT_SECRET,
-    process.env.YOUTUBE_REDIRECT_URI
-  )
-  oauth2Client.setCredentials(session.data.tokens)
-
-  const youtube = google.youtube({ version: 'v3', auth: oauth2Client })
+  const { youtube, isApiKey } = useYouTubeClient(event, tokens)
+  if (isApiKey) {
+    throw createError({ statusCode: 403, message: 'Write operations are forbidden with API Key authentication.' })
+  }
 
   console.log('Batch delete starting for:', videoIds.length, 'videos')
 

@@ -137,6 +137,12 @@ const searchQuery = ref('')
 const isChannelModalOpen = ref(false)
 const isChannelUpdating = ref(false)
 
+const customAuthType = ref('tokens')
+const customTokens = ref('')
+const customApiKey = ref('')
+const customChannelId = ref('')
+const isCustomAuthSubmitting = ref(false)
+
 const columns = [
   { id: 'select', key: 'select', label: 'Select' },
   { id: 'image', key: 'image', label: 'Image' },
@@ -318,6 +324,57 @@ const handleChannelUpdate = async () => {
   }
 }
 
+const handleCustomAuth = async () => {
+  isCustomAuthSubmitting.value = true
+  try {
+    const payload: any = {}
+    if (customAuthType.value === 'tokens') {
+      if (!customTokens.value.trim()) {
+        toast.add({ title: 'Validation Error', description: 'Tokens JSON cannot be empty', color: 'primary' })
+        return
+      }
+      payload.tokens = customTokens.value
+    } else {
+      if (!customApiKey.value.trim() || !customChannelId.value.trim()) {
+        toast.add({ title: 'Validation Error', description: 'API Key and Channel ID are both required', color: 'primary' })
+        return
+      }
+      payload.apiKey = customApiKey.value
+      payload.channelId = customChannelId.value
+    }
+
+    await $fetch('/api/auth/session', {
+      method: 'POST',
+      body: payload
+    })
+
+    toast.add({ title: 'Authentication Successful', color: 'primary' })
+    await refreshAuth()
+    window.location.reload()
+  } catch (e: any) {
+    const msg = e.data?.message || e.message
+    toast.add({ title: 'Authentication Failed', description: msg, color: 'primary' })
+  } finally {
+    isCustomAuthSubmitting.value = false
+  }
+}
+
+const handleLogout = async () => {
+  try {
+    await $fetch('/api/auth/session', {
+      method: 'POST',
+      body: { action: 'logout' }
+    })
+    isChannelModalOpen.value = false
+    toast.add({ title: 'Account Disconnected', color: 'primary' })
+    await refreshAuth()
+    window.location.reload()
+  } catch (e: any) {
+    const msg = e.data?.message || e.message
+    toast.add({ title: 'Logout Failed', description: msg, color: 'primary' })
+  }
+}
+
 watch(isPlayerOpen, (val) => {
   if (!val) {
     selectedVideoForPlay.value = null
@@ -440,59 +497,66 @@ watch(isDeleteModalOpen, (val) => {
           </template>
 
           <form @submit.prevent="handleBatchUpdate" class="space-y-4">
+            <div v-if="auth?.isApiKey" class="p-3 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg text-xs flex gap-2 items-center mb-4">
+              <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4 flex-shrink-0" />
+              <span>Bulk edits are disabled under Public API Key authentication (Read-Only).</span>
+            </div>
+
             <UFormField label="Title Template" help="Use {{title}} to preserve existing title">
-              <UInput v-model="form.title" placeholder="e.g. [NEW] {{title}}" />
+              <UInput v-slot="{ inputProps }" v-model="form.title" placeholder="e.g. [NEW] {{title}}" :disabled="auth?.isApiKey" />
             </UFormField>
-
+ 
             <UFormField label="Description Template" help="Use {{description}} for existing content">
-              <UTextarea v-model="form.description" placeholder="Add links or text..." :rows="4" />
+              <UTextarea v-slot="{ inputProps }" v-model="form.description" placeholder="Add links or text..." :rows="4" :disabled="auth?.isApiKey" />
             </UFormField>
-
+ 
             <UFormField label="Tags (comma separated)">
-              <UInput v-model="form.tags" placeholder="vlog, gaming, tech..." />
+              <UInput v-slot="{ inputProps }" v-model="form.tags" placeholder="vlog, gaming, tech..." :disabled="auth?.isApiKey" />
             </UFormField>
-
+ 
             <UFormField label="Tags Action">
               <div class="flex p-1 bg-zinc-950 rounded-xl border border-white/5 w-full mt-1">
                 <button 
                   type="button"
-                  @click="form.tagsAction = 'add'"
+                  @click="!auth?.isApiKey && (form.tagsAction = 'add')"
                   class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all duration-500 font-black text-[10px] uppercase tracking-[0.2em]"
                   :class="form.tagsAction === 'add' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' : 'text-zinc-600 hover:text-zinc-400'"
+                  :disabled="auth?.isApiKey"
                 >
                   <UIcon name="i-heroicons-plus-circle" class="w-4 h-4" />
                   Append
                 </button>
                 <button 
                   type="button"
-                  @click="form.tagsAction = 'replace'"
+                  @click="!auth?.isApiKey && (form.tagsAction = 'replace')"
                   class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all duration-500 font-black text-[10px] uppercase tracking-[0.2em]"
                   :class="form.tagsAction === 'replace' ? 'bg-zinc-800 text-white border border-white/10 shadow-xl' : 'text-zinc-600 hover:text-zinc-400'"
+                  :disabled="auth?.isApiKey"
                 >
                   <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
                   Overwrite
                 </button>
               </div>
             </UFormField>
-
+ 
             <div class="grid grid-cols-2 gap-4">
               <UFormField label="Privacy Status">
-                <USelectMenu v-model="form.privacyStatus" :items="([ { label: 'Public', value: 'public' }, { label: 'Private', value: 'private' }, { label: 'Unlisted', value: 'unlisted' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" />
+                <USelectMenu v-model="form.privacyStatus" :items="([ { label: 'Public', value: 'public' }, { label: 'Private', value: 'private' }, { label: 'Unlisted', value: 'unlisted' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" :disabled="auth?.isApiKey" />
               </UFormField>
               <UFormField label="Category">
-                <USelectMenu v-model="form.categoryId" :items="([ { label: 'Gaming', value: '20' }, { label: 'Education', value: '27' }, { label: 'Entertainment', value: '24' }, { label: 'People & Blogs', value: '22' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" />
+                <USelectMenu v-model="form.categoryId" :items="([ { label: 'Gaming', value: '20' }, { label: 'Education', value: '27' }, { label: 'Entertainment', value: '24' }, { label: 'People & Blogs', value: '22' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" :disabled="auth?.isApiKey" />
               </UFormField>
             </div>
-
+ 
             <USeparator class="my-6" />
-
+ 
             <UButton 
               type="submit" 
               color="primary" 
               block 
               class="btn-premium btn-update rounded-lg py-2.5 font-medium"
               :loading="isUpdating"
-              :disabled="(selectedVideos?.length || 0) === 0"
+              :disabled="(selectedVideos?.length || 0) === 0 || auth?.isApiKey"
             >
               Update {{ selectedVideos?.length || 0 }} Videos
             </UButton>
@@ -584,7 +648,9 @@ watch(isDeleteModalOpen, (val) => {
               </UBadge>
             </template>
             <template #actions-cell="{ row }">
-              <UDropdownMenu :items="[[
+              <UDropdownMenu :items="auth?.isApiKey ? [[
+                { label: 'Play', icon: 'i-heroicons-play', onSelect: () => openPlayer(row.original) }
+              ]] : [[
                 { label: 'Play', icon: 'i-heroicons-play', onSelect: () => openPlayer(row.original) },
                 { label: 'Fill Form', icon: 'i-heroicons-pencil', onSelect: () => populateForm(row.original) }
               ], [
@@ -648,7 +714,7 @@ watch(isDeleteModalOpen, (val) => {
             <h2 class="text-xl font-bold text-white">Active Campaigns</h2>
             <p class="text-zinc-400 text-sm mt-1" v-if="promotions.isDemoMode">{{ promotions.message }}</p>
           </div>
-          <UButton color="primary" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" class="btn-premium font-bold">Launch Promotion</UButton>
+          <UButton color="primary" size="lg" icon="i-heroicons-plus" @click="isLaunchModalOpen = true" :disabled="auth?.isApiKey" class="btn-premium font-bold">Launch Promotion</UButton>
         </div>
         <div class="grid md:grid-cols-2 gap-6">
           <UCard v-for="camp in promotions.campaigns" :key="camp.id" class="glass-card relative overflow-hidden group">
@@ -673,14 +739,93 @@ watch(isDeleteModalOpen, (val) => {
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-else-if="!auth?.authenticated" class="flex flex-col items-center justify-center py-20 space-y-6">
-      <div class="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center text-red-500 animate-pulse">
-        <UIcon name="i-heroicons-lock-closed" class="w-12 h-12" />
+    <!-- Empty State / Authentication Interface -->
+    <div v-else-if="!auth?.authenticated" class="max-w-md w-full mx-auto py-12 px-6 bg-zinc-950/40 border border-white/5 rounded-2xl shadow-2xl flex flex-col items-center space-y-8 backdrop-blur-xl animate-[fadeIn_0.5s_ease-out]">
+      <div class="flex flex-col items-center space-y-3 text-center">
+        <div class="w-16 h-16 bg-red-600/10 rounded-2xl flex items-center justify-center text-red-500 border border-red-500/20 shadow-lg shadow-red-955/20">
+          <UIcon name="i-heroicons-lock-closed" class="w-8 h-8" />
+        </div>
+        <h2 class="text-2xl font-black text-white">YouTube Studio Agent</h2>
+        <p class="text-sm text-zinc-400">Manage your channels, update metadata, and track metrics effortlessly.</p>
       </div>
-      <div class="text-center space-y-2">
-        <h2 class="text-3xl font-bold">Authentication Required</h2>
-        <p class="text-zinc-500 max-w-md">Connect your YouTube channel to start managing your videos in batch.</p>
+
+      <!-- Action: Google OAuth -->
+      <div class="w-full space-y-3">
+        <p class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Default Authentication</p>
+        <a href="/api/auth/login" class="btn-premium flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-red-900/20 w-full text-center">
+          <UIcon name="i-heroicons-arrow-right-on-rectangle" class="w-5 h-5" />
+          Connect via Google Account
+        </a>
+      </div>
+
+      <div class="flex items-center w-full my-4">
+        <div class="flex-grow border-t border-white/5"></div>
+        <span class="mx-3 text-xs font-bold text-zinc-600 uppercase tracking-wider">Or</span>
+        <div class="flex-grow border-t border-white/5"></div>
+      </div>
+
+      <!-- Action: Custom API Credentials -->
+      <div class="w-full space-y-4">
+        <div class="flex justify-between items-center">
+          <p class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Custom Credentials</p>
+          <div class="flex bg-zinc-900 p-0.5 rounded-lg border border-white/5">
+            <button 
+              class="text-[10px] font-bold px-2 py-1 rounded" 
+              :class="customAuthType === 'tokens' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'"
+              @click="customAuthType = 'tokens'"
+            >
+              Shared Tokens
+            </button>
+            <button 
+              class="text-[10px] font-bold px-2 py-1 rounded" 
+              :class="customAuthType === 'apiKey' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'"
+              @click="customAuthType = 'apiKey'"
+            >
+              Public API Key
+            </button>
+          </div>
+        </div>
+
+        <form @submit.prevent="handleCustomAuth" class="space-y-4">
+          <!-- Shared Tokens Input -->
+          <div v-if="customAuthType === 'tokens'" class="space-y-2">
+            <label class="text-xs font-medium text-zinc-400">Tokens JSON</label>
+            <UTextarea 
+              v-slot="{ inputProps }"
+              v-model="customTokens" 
+              placeholder='{"access_token": "...", "refresh_token": "..."}' 
+              :rows="4" 
+              class="w-full !bg-zinc-900/50 border-white/5 font-mono text-xs leading-relaxed" 
+            />
+            <p class="text-[10px] text-zinc-500">Paste your exported session tokens JSON string to connect.</p>
+          </div>
+
+          <!-- Public API Key + Channel ID Input -->
+          <div v-else class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-zinc-400">API Key</label>
+              <UInput 
+                v-model="customApiKey" 
+                placeholder="AIzaSy..." 
+                type="password"
+                class="w-full !bg-zinc-900/50 border-white/5" 
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-zinc-400">Channel ID</label>
+              <UInput 
+                v-model="customChannelId" 
+                placeholder="UC..." 
+                class="w-full !bg-zinc-900/50 border-white/5" 
+              />
+            </div>
+            <p class="text-[10px] text-zinc-500">Public data only. Write operations will be disabled.</p>
+          </div>
+
+          <UButton type="submit" color="neutral" class="w-full font-semibold py-2.5 rounded-xl border border-white/10 hover:bg-zinc-900" :loading="isCustomAuthSubmitting">
+            Apply Credentials
+          </UButton>
+        </form>
       </div>
     </div>
 
@@ -771,10 +916,16 @@ watch(isDeleteModalOpen, (val) => {
           </template>
 
           <form @submit.prevent="handleChannelUpdate" class="space-y-6 py-4">
+            <div v-if="auth?.isApiKey" class="p-3 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg text-xs flex gap-2 items-center mb-4">
+              <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4 flex-shrink-0" />
+              <span>You are authenticated via a Public API Key (Read-Only). Channel modifications are disabled.</span>
+            </div>
+
             <UFormField label="Channel Title" help="Updating title may require channel verification">
               <UInput 
                 v-model="channelForm.title" 
                 :placeholder="auth.channel?.title" 
+                :disabled="auth?.isApiKey"
                 class="w-full !bg-zinc-900/50 border-white/5"
               />
             </UFormField>
@@ -783,13 +934,24 @@ watch(isDeleteModalOpen, (val) => {
                 v-model="channelForm.description" 
                 :placeholder="auth.channel?.description" 
                 :rows="8" 
+                :disabled="auth?.isApiKey"
                 class="w-full !bg-zinc-900/50 border-white/5 font-sans leading-relaxed"
               />
             </UFormField>
             
-            <div class="flex justify-end gap-3 pt-6 border-t border-white/5">
-              <UButton color="neutral" variant="ghost" @click="isChannelModalOpen = false">Cancel</UButton>
-              <UButton type="submit" color="primary" :loading="isChannelUpdating" class="btn-premium px-8">Save Changes</UButton>
+            <div class="flex justify-between items-center pt-6 border-t border-white/5 w-full">
+              <UButton 
+                color="danger" 
+                variant="subtle" 
+                icon="i-heroicons-arrow-left-on-rectangle" 
+                @click="handleLogout"
+              >
+                Disconnect
+              </UButton>
+              <div class="flex gap-3">
+                <UButton color="neutral" variant="ghost" @click="isChannelModalOpen = false">Cancel</UButton>
+                <UButton v-if="!auth?.isApiKey" type="submit" color="primary" :loading="isChannelUpdating" class="btn-premium px-8">Save Changes</UButton>
+              </div>
             </div>
           </form>
         </UCard>
