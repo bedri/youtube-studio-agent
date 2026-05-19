@@ -12,7 +12,14 @@ export default defineEventHandler(async (event) => {
 
   // Fetch some public videos to assign mock campaigns to them
   let cachedVideos = await useStorage('data').getItem('youtube:video_cache') as any[] | null
-  if (!cachedVideos) return { campaigns: [], isDemoMode: true }
+  
+  if (!cachedVideos || cachedVideos.length === 0) {
+    // Fallback mock videos if cache is empty
+    cachedVideos = [
+      { id: 'mock1', snippet: { title: 'My Awesome Vlog', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } },
+      { id: 'mock2', snippet: { title: 'Nuxt 4 Tutorial', thumbnails: { default: { url: 'https://via.placeholder.com/120' } } }, status: { privacyStatus: 'public' } }
+    ]
+  }
 
   if (!isOwner) {
     cachedVideos = cachedVideos.filter(v => v.status?.privacyStatus !== 'private')

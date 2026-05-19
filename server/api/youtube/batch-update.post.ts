@@ -31,44 +31,36 @@ export default defineEventHandler(async (event) => {
 
       const currentVideo = video
       const videoId = id
-      const currentTags = currentVideo.snippet.tags || []
+      const currentTags = currentVideo.snippet?.tags || []
       const updatedTags = changes.tagsAction === 'add' 
-        ? [...new Set([...currentTags, ...changes.tags])]
+        ? [...new Set([...currentTags, ...(changes.tags || [])])]
         : changes.tags
 
       // 2. Apply changes
       const updateParams: any = {
-      id: videoId,
-      snippet: {
-        ...currentVideo.snippet,
-        title: changes.title ? changes.title.replace('{{title}}', currentVideo.snippet.title) : currentVideo.snippet.title,
-        description: changes.description ? changes.description.replace('{{description}}', currentVideo.snippet.description) : currentVideo.snippet.description,
-        tags: updatedTags,
-        categoryId: changes.categoryId || currentVideo.snippet.categoryId
-      },
-      status: {
-        ...currentVideo.status,
-        privacyStatus: changes.privacyStatus || currentVideo.status.privacyStatus,
-        selfDeclaredMadeForKids: changes.selfDeclaredMadeForKids !== undefined ? changes.selfDeclaredMadeForKids : currentVideo.status.selfDeclaredMadeForKids
-      }
-    }
-
-    if (changes.license) {
-      updateParams.status.license = changes.license
-    }
- if (changes.tagsAction === 'add') {
-          updateParams.snippet.tags = [...new Set([...(updateParams.snippet.tags || []), ...changes.tags])]
-        } else {
-          updateParams.snippet.tags = changes.tags
+        id: videoId,
+        snippet: {
+          ...currentVideo.snippet,
+          title: changes.title && currentVideo.snippet?.title ? changes.title.replace('{{title}}', currentVideo.snippet.title) : currentVideo.snippet?.title,
+          description: changes.description && currentVideo.snippet?.description ? changes.description.replace('{{description}}', currentVideo.snippet.description) : currentVideo.snippet?.description,
+          tags: updatedTags,
+          categoryId: changes.categoryId || currentVideo.snippet?.categoryId
+        },
+        status: {
+          ...currentVideo.status,
+          privacyStatus: changes.privacyStatus || currentVideo.status?.privacyStatus,
+          selfDeclaredMadeForKids: changes.selfDeclaredMadeForKids !== undefined ? changes.selfDeclaredMadeForKids : currentVideo.status?.selfDeclaredMadeForKids
         }
+      }
+
+      if (changes.license) {
+        updateParams.status.license = changes.license
+      }
 
       // 3. Update
       await youtube.videos.update({
-        part: ['snippet'],
-        requestBody: {
-          id,
-          snippet
-        }
+        part: ['snippet', 'status'],
+        requestBody: updateParams
       })
 
       results.push({ id, status: 'success' })
