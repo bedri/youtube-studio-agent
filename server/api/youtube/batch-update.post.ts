@@ -10,18 +10,24 @@ export default defineEventHandler(async (event) => {
   const { oauth2Client, youtube } = useYouTubeClient()
   oauth2Client.setCredentials(tokens)
 
+  const isOwner = !!getCookie(event, 'youtube_tokens')
   const results = []
 
   for (const id of videoIds) {
     try {
       // 1. Get current metadata
       const videoRes = await youtube.videos.list({
-        part: ['snippet'],
+        part: ['snippet', 'status'],
         id: [id]
       })
 
       const video = videoRes.data.items?.[0]
       if (!video || !video.snippet) continue
+
+      if (video.status?.privacyStatus === 'private' && !isOwner) {
+        results.push({ id, status: 'error', message: 'Forbidden: Access denied to private video for assistant' })
+        continue
+      }
 
       const currentVideo = video
       const videoId = id

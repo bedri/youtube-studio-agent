@@ -26,5 +26,19 @@ export const getYouTubeTokens = async (event: any) => {
   }
   // Fallback to shared server-side tokens
   console.log('[YouTube Util] Cookie not found or invalid. Falling back to shared server tokens.')
-  return await useStorage('data').getItem('youtube:tokens')
+  const cachedTokens = await useStorage('data').getItem('youtube:tokens')
+  if (cachedTokens) return cachedTokens
+
+  // Fallback to token configuration in environment variables / .env (for independent local setups)
+  const config = useRuntimeConfig()
+  if (config.youtubeSharedTokens) {
+    try {
+      console.log('[YouTube Util] Using shared credentials from environment configuration.')
+      return JSON.parse(config.youtubeSharedTokens)
+    } catch (e) {
+      console.error('[YouTube Util] Failed to parse YOUTUBE_SHARED_TOKENS from environment config:', e)
+    }
+  }
+
+  return null
 }

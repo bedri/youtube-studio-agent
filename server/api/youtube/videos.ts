@@ -7,13 +7,15 @@ export default defineEventHandler(async (event) => {
   const { oauth2Client, youtube } = useYouTubeClient()
   oauth2Client.setCredentials(tokens)
 
+  const isOwner = !!getCookie(event, 'youtube_tokens')
+
   // Check cache first
   const query = getQuery(event)
   if (query.refresh !== 'true') {
-    const cached = await useStorage('data').getItem('youtube:video_cache')
+    const cached = await useStorage('data').getItem('youtube:video_cache') as any[] | null
     if (cached) {
       console.log('[API] Serving videos from cache')
-      return cached
+      return isOwner ? cached : cached.filter(v => v.status?.privacyStatus !== 'private')
     }
   }
 
@@ -74,5 +76,5 @@ export default defineEventHandler(async (event) => {
   await useStorage('data').setItem('youtube:video_cache', allVideos)
   await useStorage('data').setItem('youtube:known_videos', videoIds)
   
-  return allVideos
+  return isOwner ? allVideos : allVideos.filter(v => v.status?.privacyStatus !== 'private')
 })

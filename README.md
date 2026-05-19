@@ -43,6 +43,37 @@ A highly optimized, premium-designed web application built on **Nuxt 4** and **T
 
 ---
 
+## 👥 Assistant Setup & Privacy Controls
+
+If you want your assistant to manage your YouTube channel without giving them your personal Google account password or login credentials, follow these simple steps:
+
+### 1. Exporting the Access Tokens (Done by the Owner)
+1. Log in to the YouTube Batch Agent on your local machine.
+2. Visit the secure token exporter route: `http://localhost:50555/api/youtube/export-tokens`
+3. Copy the long JSON string inside the `tokenJson` property.
+4. Send this JSON string to your assistant securely.
+
+### 2. Configuring the Assistant's Environment (Done by the Assistant)
+1. Clone the project to the assistant's computer.
+2. In the root directory, create a `.env` file and add the copied token string:
+   ```bash
+   YOUTUBE_CLIENT_ID=your_client_id
+   YOUTUBE_CLIENT_SECRET=your_client_secret
+   YOUTUBE_REDIRECT_URI=http://localhost:50555/api/auth/youtube
+
+   # Paste the exported token JSON here
+   YOUTUBE_SHARED_TOKENS='{"access_token":"...","refresh_token":"...","scope":"...","token_type":"Bearer","expiry_date":...}'
+   ```
+3. Run `npm run dev` to start the app at `http://localhost:50555`. 
+4. The assistant will be automatically logged in and can manage all your videos, **completely bypassing the Google Login screen**.
+
+### 🔒 Privacy Safeguards
+* **Automatic Private Video Filtering:** When accessed under the assistant session (meaning no owner cookie is present in their local browser), the backend dynamically strips out all `private` status videos.
+* **No Private Metadata Access:** The assistant will **never see your private videos** in their video list or dashboard, and any attempt to view private thumbnails or execute bulk updates on private videos is blocked securely with a `403 Forbidden` response.
+* **No Google Login Required:** The assistant never interacts with your personal Google credentials.
+
+---
+
 ## 🚀 Running Locally
 
 Install dependencies and start the dev server:

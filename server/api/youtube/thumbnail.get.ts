@@ -11,9 +11,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
+  const isOwner = !!getCookie(event, 'youtube_tokens')
+
   // 1. Check video cache first to see if we have a cached thumbnail URL
   let cachedVideos = await useStorage('data').getItem('youtube:video_cache') as any[] | null
   const cachedVideo = cachedVideos?.find(v => v.id === videoId)
+  
+  // Prevent assistant from accessing private video thumbnails
+  if (cachedVideo && cachedVideo.status?.privacyStatus === 'private' && !isOwner) {
+    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Private video thumbnail access denied for assistant' })
+  }
+
   const cachedUrl = cachedVideo?.snippet?.thumbnails?.medium?.url || cachedVideo?.snippet?.thumbnails?.default?.url
 
   let response: Response | null = null
@@ -50,6 +58,11 @@ export default defineEventHandler(async (event) => {
       const freshVideo = videoRes.data.items?.[0]
       if (!freshVideo) {
         throw createError({ statusCode: 404, statusMessage: 'Video not found on YouTube' })
+      }
+
+      // Prevent assistant from accessing private video thumbnails
+      if (freshVideo.status?.privacyStatus === 'private' && !isOwner) {
+        throw createError({ statusCode: 403, statusMessage: 'Forbidden: Private video thumbnail access denied for assistant' })
       }
 
       // Update the cache with the updated snippet (containing the fresh, signed thumbnail URLs)

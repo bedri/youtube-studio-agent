@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     youtubeClientId: process.env.YOUTUBE_CLIENT_ID,
     youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET,
     youtubeRedirectUri: process.env.YOUTUBE_REDIRECT_URI,
+    youtubeSharedTokens: process.env.YOUTUBE_SHARED_TOKENS,
     public: {
       // Public vars if any
     }
