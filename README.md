@@ -143,6 +143,42 @@ sudo systemctl start youtube-studio-agent.service
 
 ---
 
+## 🏃 Running Without Root (No sudo)
+
+If you are running the agent on a shared hosting environment or a server where you **do not have root (sudo) privileges**, you can use `tmux` or `crontab` to keep the application and the Sentinel monitor running in the background.
+
+### Option A: Using `tmux` (Terminal Multiplexer)
+`tmux` allows you to spin up a terminal session that persists even after you disconnect from SSH.
+
+1. **Start a new detached session:**
+   ```bash
+   tmux new -d -s youtube-agent 'NODE_OPTIONS="--dns-result-order=ipv4first" npm run dev'
+   ```
+2. **Check/View the active logs:**
+   Attach to the running session:
+   ```bash
+   tmux attach -t youtube-agent
+   ```
+3. **Detach safely:**
+   To leave it running in the background, press `Ctrl + B`, then press `D`.
+
+---
+
+### Option B: Auto-start on Reboot via `crontab`
+To ensure the agent starts automatically whenever the server restarts without using systemd:
+
+1. Open your user's crontab editor:
+   ```bash
+   crontab -e
+   ```
+2. Add the following line at the end of the file (replace `/path/to/your/project` with your actual project path):
+   ```text
+   @reboot cd /path/to/your/project && NODE_OPTIONS="--dns-result-order=ipv4first" npm run dev > /dev/null 2>&1
+   ```
+3. Save and close. The app will now boot automatically on system startups under your user account.
+
+---
+
 ## 🖥️ Desktop Application (Electron)
 
 The project includes a robust, natively-integrated **Electron.js** desktop wrapper that automatically manages the Nuxt Nitro backend, local KV stores, and YouTube API integrations without relying on a browser.
