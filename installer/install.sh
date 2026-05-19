@@ -12,8 +12,12 @@ INSTALL_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
 
+OS_TYPE=$(uname -s)
+
 # Detect GUI tool
-if command -v kdialog >/dev/null 2>&1; then
+if [ "$OS_TYPE" = "Darwin" ]; then
+    GUI="osascript"
+elif command -v kdialog >/dev/null 2>&1; then
     GUI="kdialog"
 elif command -v zenity >/dev/null 2>&1; then
     GUI="zenity"
@@ -22,7 +26,20 @@ else
 fi
 
 show_msg() {
-    if [ "$GUI" = "kdialog" ]; then
+    if [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
+    elif [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
+    elif [ "$GUI" = "osascript" ]; then
+        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
+        if [ "$CHOICE_RAW" = "false" ]; then
+            exit 0
+        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
+            CHOICE="electron"
+        else
+            CHOICE="tauri"
+        fi
+    elif [ "$GUI" = "kdialog" ]; then
         kdialog --title "$APP_NAME Installer" --msgbox "$1"
     elif [ "$GUI" = "zenity" ]; then
         zenity --info --title="$APP_NAME Installer" --text="$1"
@@ -33,7 +50,20 @@ show_msg() {
 }
 
 show_error() {
-    if [ "$GUI" = "kdialog" ]; then
+    if [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
+    elif [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
+    elif [ "$GUI" = "osascript" ]; then
+        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
+        if [ "$CHOICE_RAW" = "false" ]; then
+            exit 0
+        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
+            CHOICE="electron"
+        else
+            CHOICE="tauri"
+        fi
+    elif [ "$GUI" = "kdialog" ]; then
         kdialog --title "Error" --error "$1"
     elif [ "$GUI" = "zenity" ]; then
         zenity --error --title="Error" --text="$1"
@@ -44,7 +74,20 @@ show_error() {
 }
 
 ask_version() {
-    if [ "$GUI" = "kdialog" ]; then
+    if [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
+    elif [ "$GUI" = "osascript" ]; then
+        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
+    elif [ "$GUI" = "osascript" ]; then
+        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
+        if [ "$CHOICE_RAW" = "false" ]; then
+            exit 0
+        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
+            CHOICE="electron"
+        else
+            CHOICE="tauri"
+        fi
+    elif [ "$GUI" = "kdialog" ]; then
         CHOICE=$(kdialog --title "$APP_NAME Installer" --radiolist "Select the version to install:" \
             "electron" "Electron Version (Recommended - Zero Config)" on \
             "tauri" "Tauri Version (Lightweight - Requires System Libs)" off)
@@ -76,6 +119,11 @@ ask_version() {
 VERSION=$(ask_version)
 
 if [ "$VERSION" = "electron" ]; then
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        FILE_NAME="youtube-studio-agent-electron-macos.zip"
+    else
+        FILE_NAME="youtube-studio-agent-electron-x86_64.AppImage"
+    fi
     FILE_NAME="youtube-studio-agent-electron-x86_64.AppImage"
 else
     FILE_NAME="youtube-studio-agent-tauri-x86_64"
@@ -107,15 +155,26 @@ else
 fi
 
 # Install
-mkdir -p "$INSTALL_DIR"
+if [ "$OS_TYPE" = "Darwin" ]; then
+    INSTALL_DIR="/Applications"
+    echo "Mac installation..."
+    # Unzip to applications if it is a zip
+    if [[ "$FILE_NAME" == *.zip ]]; then
+        unzip -o "$FILE_NAME" -d "$INSTALL_DIR/YouTubeStudioAgent"
+    else
+        cp "$FILE_NAME" "$INSTALL_DIR/$BIN_NAME"
+        chmod +x "$INSTALL_DIR/$BIN_NAME"
+    fi
+else
+    mkdir -p "$INSTALL_DIR"
 mkdir -p "$DESKTOP_DIR"
-mkdir -p "$ICON_DIR"
+    mkdir -p "$ICON_DIR"
 
 cp "$FILE_NAME" "$INSTALL_DIR/$BIN_NAME"
-chmod +x "$INSTALL_DIR/$BIN_NAME"
+    chmod +x "$INSTALL_DIR/$BIN_NAME"
 
-# Create .desktop file
-cat > "$DESKTOP_DIR/$BIN_NAME.desktop" <<EOF
+    # Create .desktop file
+    cat > "$DESKTOP_DIR/$BIN_NAME.desktop" <<EOF
 [Desktop Entry]
 Name=$APP_NAME
 Exec=$INSTALL_DIR/$BIN_NAME
@@ -125,5 +184,6 @@ Categories=Utility;Internet;
 Comment=Your autonomous YouTube Channel manager.
 Terminal=false
 EOF
+fi
 
 show_msg "Installation complete!\n\nYou can now launch $APP_NAME from your application menu."
