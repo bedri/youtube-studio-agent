@@ -50,34 +50,86 @@ export default defineEventHandler(async (event) => {
       console.error('Failed to read total statistics for simulation:', e)
     }
 
-    // Generate highly realistic organic data for the last 15 days
-    // Base daily views is proportional to channel size (e.g. ~8% of subscribers)
-    const baseDailyViews = Math.max(120, Math.round(totalSubs * 0.08))
-    const baseDailySubs = Math.max(3, Math.round(totalSubs * 0.004))
+    // Map history entries by day for fast lookup
+    const historyMap = new Map()
+    history.forEach((entry: any) => {
+      historyMap.set(entry.day, entry)
+    })
+
+    // Compute measured daily growth from history to use as base for simulation
+    let measuredDailyViews = 0
+    let measuredDailySubs = 0
+    let measurementsCount = 0
+
+    for (let i = 1; i < history.length; i++) {
+      const prev = history[i - 1]
+      const curr = history[i]
+      const diffViews = curr.views - prev.views
+      const diffSubs = curr.subscribers - prev.subscribers
+      if (diffViews >= 0 && diffSubs >= 0) {
+        measuredDailyViews += diffViews
+        measuredDailySubs += diffSubs
+        measurementsCount++
+      }
+    }
+
+    let baseDailyViews = Math.max(120, Math.round(totalSubs * 0.08))
+    // If the channel has high subscriber counts (viral status >10k subs),
+    // we use a high-growth rate of 4.6% to match the ~1000 subs/day growth scale.
+    let baseDailySubs = Math.max(3, Math.round(totalSubs * (totalSubs > 10000 ? 0.046 : 0.004)))
+
+    if (measurementsCount > 0) {
+      baseDailyViews = Math.round(measuredDailyViews / measurementsCount)
+      baseDailySubs = Math.round(measuredDailySubs / measurementsCount)
+    }
 
     const dailyData = []
     for (let i = 15; i >= 0; i--) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
       const d = date.toISOString().split('T')[0]
-      const dayOfWeek = date.getDay() // 0 = Sunday, 6 = Saturday
-      
-      // Weekly cycle: peak on Friday/Saturday/Sunday, dip on Tuesday/Wednesday
-      // Cycle multiplier between 0.8 and 1.2
+      const dayOfWeek = date.getDay()
+
+      // Check if we have real history data for this day
+      const todayEntry = historyMap.get(d)
+      if (todayEntry) {
+        // Find the closest entry in history before todayEntry
+        const prevEntry = history
+          .filter((entry: any) => entry.day < d)
+          .sort((a: any, b: any) => b.day.localeCompare(a.day))[0]
+
+        if (prevEntry) {
+          const daysDiff = (new Date(d).getTime() - new Date(prevEntry.day).getTime()) / (24 * 60 * 60 * 1000)
+          const views = Math.round(Math.max(0, todayEntry.views - prevEntry.views) / Math.max(1, daysDiff))
+          const subscribersGained = Math.round(Math.max(0, todayEntry.subscribers - prevEntry.subscribers) / Math.max(1, daysDiff))
+          const watchTime = Math.round(views * 3.5)
+
+          dailyData.push({
+            day: d,
+            views,
+            watchTime,
+            avgViewDuration: 210,
+            subscribersGained,
+            isRealData: true
+          })
+          continue
+        }
+      }
+
+      // Fallback to organic simulation matching the base rate
       const cycleFactor = 1.0 + 0.2 * Math.sin((dayOfWeek - 3) * (Math.PI / 3.5))
-      
-      // Organic random noise +/- 15%
       const noiseFactor = 0.85 + Math.random() * 0.30
       
       const views = Math.round(baseDailyViews * cycleFactor * noiseFactor)
       const subscribersGained = Math.round(baseDailySubs * cycleFactor * noiseFactor * (0.8 + Math.random() * 0.4))
-      const watchTime = Math.round(views * (2.8 + Math.random() * 1.4)) // 2.8 to 4.2 minutes average
+      const watchTime = Math.round(views * (2.8 + Math.random() * 1.4))
 
       dailyData.push({
         day: d,
         views,
         watchTime,
         avgViewDuration: Math.round(160 + Math.random() * 50),
-        subscribersGained
+        subscribersGained,
+        isRealData: false
       })
     }
 
