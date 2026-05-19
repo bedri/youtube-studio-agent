@@ -1227,6 +1227,21 @@ watch(isDeleteModalOpen, (val) => {
               </div>
             </div>
 
+            <!-- Server Process Control -->
+            <div class="space-y-4 pt-4 border-t border-white/5">
+              <h4 class="font-mono font-bold text-xs text-zinc-400 uppercase tracking-wider">Process Control</h4>
+              <UButton
+                color="danger"
+                variant="solid"
+                icon="i-heroicons-power"
+                class="w-full font-mono text-xs justify-center py-2.5 bg-red-600 hover:bg-red-700 text-white cursor-pointer font-bold border border-red-400/20"
+                :loading="devConsoleLoading"
+                @click="runDevAction('shutdown')"
+              >
+                Shutdown Dev Server
+              </UButton>
+            </div>
+
             <div class="space-y-4 pt-4 border-t border-white/5">
               <h4 class="font-mono font-bold text-xs text-zinc-400 uppercase tracking-wider">Application Helpers</h4>
               <div class="p-3 bg-zinc-900/40 rounded-xl border border-white/5 text-[11px] font-mono leading-relaxed text-zinc-400 space-y-2">

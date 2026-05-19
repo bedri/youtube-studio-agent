@@ -75,5 +75,13 @@ export default defineEventHandler(async (event) => {
     return { success: true, message: '15-day viral growth analytics seeded successfully.' }
   }
 
+  if (action === 'shutdown') {
+    setTimeout(() => {
+      console.log('Shutting down dev server via Dev Console...')
+      process.exit(0)
+    }, 1000)
+    return { success: true, message: 'Server shutdown initiated. The dev server process will terminate.' }
+  }
+
   return { success: false, message: 'Unknown developer action.' }
 })
