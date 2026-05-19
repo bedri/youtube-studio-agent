@@ -64,6 +64,49 @@ const isLaunchModalOpen = ref(false)
 const promotionForm = reactive({ videoId: '', dailyBudget: 10, durationDays: 7, targetLocations: '' })
 const isLaunching = ref(false)
 
+const showDevConsole = ref(false)
+const devSystemInfo = ref<any>(null)
+const devConsoleLoading = ref(false)
+const isDevMode = computed(() => typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+
+const fetchDevSystemInfo = async () => {
+  try {
+    devSystemInfo.value = await $fetch('/api/dev/control', {
+      method: 'POST',
+      body: { action: 'get_system_info' }
+    })
+  } catch (e) {
+    console.error('Failed to fetch dev system info:', e)
+  }
+}
+
+const runDevAction = async (action: string) => {
+  devConsoleLoading.value = true
+  try {
+    const res: any = await $fetch('/api/dev/control', {
+      method: 'POST',
+      body: { action, channelId: auth.value?.channelId }
+    })
+    alert(res.message || 'Operation successful')
+    if (action === 'clear_cache' || action === 'seed_history') {
+      await refreshAuth()
+      await refreshVideos()
+      await refreshAnalytics()
+      await refreshPromotions()
+    }
+  } catch (e: any) {
+    alert(e.data?.message || 'Operation failed')
+  } finally {
+    devConsoleLoading.value = false
+  }
+}
+
+watch(showDevConsole, (isOpen) => {
+  if (isOpen) {
+    fetchDevSystemInfo()
+  }
+})
+
 const launchPromotion = async () => {
   isLaunching.value = true
   try {
@@ -1107,6 +1150,101 @@ watch(isDeleteModalOpen, (val) => {
               <UButton type="submit" color="primary" :loading="isLaunching" class="btn-premium px-8" :disabled="!promotionForm.videoId">Launch Campaign</UButton>
             </div>
           </form>
+        </UCard>
+      </template>
+    </UModal>
+    <!-- Floating Dev Console Toggle -->
+    <div v-if="isDevMode" class="fixed bottom-6 right-6 z-50">
+      <UButton
+        icon="i-heroicons-cpu-chip"
+        color="red"
+        variant="solid"
+        class="rounded-full shadow-2xl hover:scale-105 transition-transform cursor-pointer font-bold px-4 py-2.5 flex items-center gap-2 bg-gradient-to-r from-red-600 to-rose-500 text-white border border-red-400/20"
+        @click="showDevConsole = true"
+      >
+        Dev Console
+      </UButton>
+    </div>
+
+    <!-- Developer Console Modal -->
+    <UModal v-model:open="showDevConsole" :ui="{ overlay: 'bg-black/90 backdrop-blur-xl' }">
+      <template #content>
+        <UCard class="glass-card !bg-zinc-950/95 border border-red-500/20 shadow-2xl max-w-lg w-full overflow-hidden">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-red-500">
+                <UIcon name="i-heroicons-command-line" class="w-6 h-6 animate-pulse" />
+                <h3 class="font-mono font-bold tracking-widest text-lg text-white">YOUTUBE_AGENT_DEV_CONSOLE</h3>
+              </div>
+              <div class="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
+                Active dev_server
+              </div>
+            </div>
+          </template>
+
+          <div class="space-y-6 py-2">
+            <!-- System Stats Dashboard -->
+            <div v-if="devSystemInfo" class="grid grid-cols-3 gap-3 p-3 bg-zinc-900/60 rounded-xl border border-white/5 font-mono text-[11px]">
+              <div>
+                <span class="text-zinc-500 block uppercase text-[9px]">Environment</span>
+                <span class="text-emerald-400 font-bold">{{ devSystemInfo.env.nodeEnv }}</span>
+              </div>
+              <div>
+                <span class="text-zinc-500 block uppercase text-[9px]">Node Port</span>
+                <span class="text-white">{{ devSystemInfo.env.port }}</span>
+              </div>
+              <div>
+                <span class="text-zinc-500 block uppercase text-[9px]">Memory Used</span>
+                <span class="text-red-400 font-bold">{{ devSystemInfo.memory.heapUsed }}</span>
+              </div>
+            </div>
+
+            <!-- Developer Actions List -->
+            <div class="space-y-4">
+              <h4 class="font-mono font-bold text-xs text-zinc-400 uppercase tracking-wider">Database & Cache Manager</h4>
+              <div class="grid grid-cols-2 gap-3">
+                <UButton
+                  color="danger"
+                  variant="subtle"
+                  icon="i-heroicons-trash"
+                  class="w-full font-mono text-xs justify-center py-2.5 border border-red-500/20 hover:bg-red-500/5 cursor-pointer"
+                  :loading="devConsoleLoading"
+                  @click="runDevAction('clear_cache')"
+                >
+                  Clear Caches
+                </UButton>
+                
+                <UButton
+                  color="primary"
+                  variant="subtle"
+                  icon="i-heroicons-bolt"
+                  class="w-full font-mono text-xs justify-center py-2.5 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/5 cursor-pointer"
+                  :loading="devConsoleLoading"
+                  @click="runDevAction('seed_history')"
+                >
+                  Seed Mock History
+                </UButton>
+              </div>
+            </div>
+
+            <div class="space-y-4 pt-4 border-t border-white/5">
+              <h4 class="font-mono font-bold text-xs text-zinc-400 uppercase tracking-wider">Application Helpers</h4>
+              <div class="p-3 bg-zinc-900/40 rounded-xl border border-white/5 text-[11px] font-mono leading-relaxed text-zinc-400 space-y-2">
+                <div class="flex justify-between">
+                  <span>Channel ID:</span>
+                  <span class="text-zinc-300 font-bold">{{ auth?.channelId || 'None' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Auth Type:</span>
+                  <span class="text-zinc-300 font-bold">{{ auth?.isApiKey ? 'Public API Key' : 'Google OAuth' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-4 border-t border-white/5">
+              <UButton color="neutral" variant="ghost" class="font-mono text-xs cursor-pointer" @click="showDevConsole = false">Close Console</UButton>
+            </div>
+          </div>
         </UCard>
       </template>
     </UModal>
