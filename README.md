@@ -208,3 +208,10 @@ Simply execute the shell script from the project root:
 ```bash
 ./installer/install.sh
 ```
+
+---
+
+## 🔌 Integration & Cloud Sync Guides
+
+*   **[MCP Installation Guide (Gemini/Claude/Cursor)](mcp_installation_guide.md):** Complete step-by-step instructions to connect the YouTube Agent API directly to LLMs (Gemini, Cursor, Claude, VS Code) using the Model Context Protocol (MCP).
+*   **[Firebase Sync Plan (Cloud Database Bridge)](firebase_sync_plan.md):** Backup reference blueprint to sync analytics data to a serverless Firebase Realtime DB, allowing assistant views without direct YouTube Channel OAuth access.
