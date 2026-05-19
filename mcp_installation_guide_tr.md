@@ -22,7 +22,7 @@ Proje kök dizininde yer alan `mcp-server.js` dosyası, **Model Context Protocol
 
 Yapay zeka modelini nerede kullandığınıza bağlı olarak ilgili konfigürasyonu uygulayın:
 
-### 1. Antigravity & OpenCode Entegrasyonu
+### 1. Antigravity (Yapay Zeka Asistanı) Entegrasyonu
 
 Antigravity asistanınızın (şu an konuştuğunuz yapay zeka kodlama asistanı) yerel YouTube Agent API'lerini doğrudan bir araç (tool) olarak kullanabilmesi için:
 1. `/home/bedri/.gemini/antigravity/mcp_config.json` dosyasını açın.
@@ -43,7 +43,30 @@ Antigravity asistanınızın (şu an konuştuğunuz yapay zeka kodlama asistanı
 
 ---
 
-### 2. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
+### 2. OpenCode Entegrasyonu
+
+OpenCode kodlama aracınıza yerel YouTube Agent MCP sunucusunu eklemek için:
+1. `/home/bedri/.config/opencode/opencode.json` dosyasını açın.
+2. Ana objenin içerisine aşağıdaki `mcp` alanını ekleyin:
+   ```json
+   {
+     "mcp": {
+       "youtube-agent": {
+         "type": "local",
+         "command": [
+           "node",
+           "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
+         ],
+         "enabled": true
+       }
+     }
+   }
+   ```
+3. Bu ayarı yaptıktan sonra OpenCode üzerindeki yerel LLM modelleriniz bu API araçlarını kullanmaya yetkili olacaktır.
+
+---
+
+### 3. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
 
 Cursor üzerinde kullandığınız yapay zekanın (Gemini veya Claude) yerel API'lerinizle konuşmasını sağlamak için:
 1. Cursor uygulamasında **Settings** (Ayarlar) > **Features** > **MCP** sayfasına gidin.
@@ -56,7 +79,7 @@ Cursor üzerinde kullandığınız yapay zekanın (Gemini veya Claude) yerel API
 
 ---
 
-### 2. VS Code Entegrasyonu (Cline / Claude Dev Eklentisi)
+### 4. VS Code Entegrasyonu (Cline / Claude Dev Eklentisi)
 
 Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentisiyle çalışıyorsanız:
 1. `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` dosyasını favori editörünüzde açın.
@@ -77,7 +100,7 @@ Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentis
 
 ---
 
-### 3. VS Code Entegrasyonu (Continue Eklentisi)
+### 5. VS Code Entegrasyonu (Continue Eklentisi)
 
 **Continue** eklentisi ile yerel MCP sunucusunu bağlamak için:
 1. `~/.continue/config.json` dosyasını açın.
@@ -96,7 +119,7 @@ Eğer VS Code üzerinde Gemini API anahtarınızı kullanarak **Cline** eklentis
 
 ---
 
-### 4. Claude Desktop Entegrasyonu
+### 6. Claude Desktop Entegrasyonu
 
 Eğer Anthropic'in resmi masaüstü uygulamasını kullanıyorsanız:
 1. `~/.config/Claude/claude_desktop_config.json` dosyasını açın (yoksa oluşturun).
@@ -117,7 +140,7 @@ Eğer Anthropic'in resmi masaüstü uygulamasını kullanıyorsanız:
 
 ---
 
-### 5. Web AI Studio / Gemini Web Entegrasyonu (OpenAPI / Function Calling)
+### 7. Web AI Studio / Gemini Web Entegrasyonu (OpenAPI / Function Calling)
 
 Bulut tabanlı servislerin (`gemini.google.com` veya `aistudio.google.com`) yerel makinenize erişebilmesi için yerel sunucunuzu dış dünyaya açmanız gerekir:
 1. Terminalden `ngrok` veya `localtunnel` kullanarak port `50555`'i tünelleyin:

@@ -22,7 +22,7 @@ The `mcp-server.js` script in the project root directory is a stdio-based server
 
 Follow the corresponding configuration steps based on where you run your AI assistant:
 
-### 1. Antigravity & OpenCode Integration
+### 1. Antigravity (AI Assistant) Integration
 
 To enable your Antigravity assistant (the AI coding agent you are currently talking to) to call your local YouTube Agent APIs directly as a tool:
 1. Open the file `/home/bedri/.gemini/antigravity/mcp_config.json`.
@@ -43,7 +43,30 @@ To enable your Antigravity assistant (the AI coding agent you are currently talk
 
 ---
 
-### 2. Cursor IDE Integration (with Gemini or Claude)
+### 2. OpenCode Integration
+
+To add the local YouTube Agent MCP server to OpenCode:
+1. Open the file `/home/bedri/.config/opencode/opencode.json`.
+2. Add the `mcp` key to the main configuration object:
+   ```json
+   {
+     "mcp": {
+       "youtube-agent": {
+         "type": "local",
+         "command": [
+           "node",
+           "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
+         ],
+         "enabled": true
+       }
+     }
+   }
+   ```
+3. Once updated, your local LLM models in OpenCode will be authorized to access these YouTube Agent tools.
+
+---
+
+### 3. Cursor IDE Integration (with Gemini or Claude)
 
 To enable the AI model running in Cursor to call your local APIs:
 1. Open Cursor and go to **Settings** > **Features** > **MCP**.
@@ -56,7 +79,7 @@ To enable the AI model running in Cursor to call your local APIs:
 
 ---
 
-### 2. VS Code Integration (Cline / Claude Dev Extension)
+### 4. VS Code Integration (Cline / Claude Dev Extension)
 
 If you are using the **Cline** extension in VS Code with your Gemini/Claude API Key:
 1. Open the global Cline configuration file in your editor:
@@ -78,7 +101,7 @@ If you are using the **Cline** extension in VS Code with your Gemini/Claude API 
 
 ---
 
-### 3. VS Code Integration (Continue Extension)
+### 5. VS Code Integration (Continue Extension)
 
 To load the MCP server using **Continue** in VS Code:
 1. Open your `~/.continue/config.json` configuration file.
@@ -97,7 +120,7 @@ To load the MCP server using **Continue** in VS Code:
 
 ---
 
-### 4. Claude Desktop Integration
+### 6. Claude Desktop Integration
 
 If you use the official Claude Desktop app by Anthropic:
 1. Open your Claude Desktop settings file: `~/.config/Claude/claude_desktop_config.json` (create it if it doesn't exist).
@@ -118,7 +141,7 @@ If you use the official Claude Desktop app by Anthropic:
 
 ---
 
-### 5. Web AI Studio / Gemini Web Integration (via OpenAPI / Function Calling)
+### 7. Web AI Studio / Gemini Web Integration (via OpenAPI / Function Calling)
 
 To expose your local API to cloud-based services (`gemini.google.com` or `aistudio.google.com`), you need to tunnel your local port:
 1. Run `ngrok` or `localtunnel` to create a public HTTPS gateway for port `50555`:
