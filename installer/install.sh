@@ -18,23 +18,27 @@ if command -v kdialog >/dev/null 2>&1; then
 elif command -v zenity >/dev/null 2>&1; then
     GUI="zenity"
 else
-    echo "No graphical dialog tool found (kdialog/zenity). Please install one."
-    exit 1
+    GUI="cli"
 fi
 
 show_msg() {
     if [ "$GUI" = "kdialog" ]; then
         kdialog --title "$APP_NAME Installer" --msgbox "$1"
-    else
+    elif [ "$GUI" = "zenity" ]; then
         zenity --info --title="$APP_NAME Installer" --text="$1"
+    else
+        echo -e "\n=== $APP_NAME Installer ==="
+        echo -e "$1\n"
     fi
 }
 
 show_error() {
     if [ "$GUI" = "kdialog" ]; then
         kdialog --title "Error" --error "$1"
-    else
+    elif [ "$GUI" = "zenity" ]; then
         zenity --error --title="Error" --text="$1"
+    else
+        echo -e "\n[ERROR] $1\n"
     fi
     exit 1
 }
@@ -44,11 +48,23 @@ ask_version() {
         CHOICE=$(kdialog --title "$APP_NAME Installer" --radiolist "Select the version to install:" \
             "electron" "Electron Version (Recommended - Zero Config)" on \
             "tauri" "Tauri Version (Lightweight - Requires System Libs)" off)
-    else
+    elif [ "$GUI" = "zenity" ]; then
         CHOICE=$(zenity --list --title="$APP_NAME Installer" --text="Select the version to install:" \
             --radiolist --column="Select" --column="Version" --column="Description" \
             TRUE "electron" "Electron Version (Recommended - Zero Config)" \
             FALSE "tauri" "Tauri Version (Lightweight - Requires System Libs)")
+    else
+        echo "Select the version to install:"
+        echo "1) Electron Version (Recommended - Zero Config)"
+        echo "2) Tauri Version (Lightweight - Requires System Libs)"
+        read -p "Enter choice [1 or 2]: " num
+        if [ "$num" = "1" ]; then
+            CHOICE="electron"
+        elif [ "$num" = "2" ]; then
+            CHOICE="tauri"
+        else
+            exit 0
+        fi
     fi
     
     if [ -z "$CHOICE" ]; then
