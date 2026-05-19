@@ -28,6 +28,8 @@ watch(activeMainTab, (newVal) => {
   if (newVal === 'promotions' && !promotions.value && promotionsStatus.value !== 'pending') refreshPromotions()
 })
 
+const selectedMetric = ref('views')
+
 const chartOptions = computed(() => ({
   chart: { type: 'area', toolbar: { show: false }, background: 'transparent', fontFamily: 'Inter, sans-serif' },
   theme: { mode: 'dark' },
@@ -36,10 +38,15 @@ const chartOptions = computed(() => ({
   xaxis: { categories: analytics.value?.dailyData?.map((d: any) => d.day) || [], labels: { style: { colors: '#9ca3af' } }, axisBorder: { show: false }, axisTicks: { show: false } },
   yaxis: { labels: { style: { colors: '#9ca3af' }, formatter: (v: number) => Math.round(v) } },
   grid: { borderColor: '#333', strokeDashArray: 4 },
-  colors: ['#ef4444']
+  colors: [selectedMetric.value === 'views' ? '#ef4444' : '#10b981']
 }))
 
-const chartSeries = computed(() => [{ name: 'Views', data: analytics.value?.dailyData?.map((d: any) => d.views) || [] }])
+const chartSeries = computed(() => [
+  { 
+    name: selectedMetric.value === 'views' ? 'Views' : 'Subscribers Gained', 
+    data: analytics.value?.dailyData?.map((d: any) => selectedMetric.value === 'views' ? d.views : d.subscribersGained) || [] 
+  }
+])
 
 const trafficChartOptions = computed(() => ({
   chart: { type: 'donut', background: 'transparent' },
@@ -227,6 +234,53 @@ const populateForm = (video: any) => {
 
 const showClearConfirm = ref(false)
 const toast = useToast()
+
+// Option 4: Description Previewer & SEO Helper
+const showDescPreview = ref(false)
+
+const charCountColor = computed(() => {
+  const len = form.description?.length || 0
+  if (len === 0) return 'text-zinc-500'
+  if (len <= 4500) return 'text-emerald-500'
+  if (len <= 5000) return 'text-amber-500'
+  return 'text-red-500'
+})
+
+const seoHint = computed(() => {
+  const len = form.description?.length || 0
+  if (len === 0) return ''
+  if (len < 150) return 'Short description (Aim for >150 chars for better SEO)'
+  if (len <= 4500) return 'Good description length'
+  if (len <= 5000) return 'Close to YouTube limit'
+  return 'Exceeds maximum limit!'
+})
+
+const resolvedDescriptionPreview = computed(() => {
+  let baseDesc = "This is a sample video description representing the original content of your video."
+  if (selectedVideos.value.length === 1) {
+    const video = (videos.value || []).find(v => v.id === selectedVideos.value[0])
+    if (video) {
+      baseDesc = video.snippet.description
+    }
+  }
+  
+  const template = form.description || '{{description}}'
+  return template.replace(/\{\{description\}\}/g, baseDesc)
+})
+
+const formattedPreview = computed(() => {
+  const escaped = (resolvedDescriptionPreview.value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  return escaped.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" class="text-red-400 hover:underline cursor-pointer">${url}</a>`
+  })
+})
 
 const clearForm = () => {
   form.title = ''
@@ -508,6 +562,31 @@ watch(isDeleteModalOpen, (val) => {
  
             <UFormField label="Description Template" help="Use {{description}} for existing content">
               <UTextarea v-slot="{ inputProps }" v-model="form.description" placeholder="Add links or text..." :rows="4" :disabled="auth?.isApiKey" />
+              
+              <div class="mt-2 space-y-2">
+                <div class="flex items-center justify-between text-[11px]">
+                  <div class="flex items-center gap-1.5 font-medium">
+                    <span :class="charCountColor">{{ form.description?.length || 0 }} / 5000</span>
+                    <span v-if="seoHint" class="text-zinc-500">• {{ seoHint }}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    @click="showDescPreview = !showDescPreview"
+                    class="text-red-500 hover:text-red-400 font-bold transition flex items-center gap-1 cursor-pointer select-none"
+                  >
+                    <UIcon :name="showDescPreview ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-3.5 h-3.5" />
+                    {{ showDescPreview ? 'Hide Preview' : 'Show SEO & Preview' }}
+                  </button>
+                </div>
+
+                <div v-if="showDescPreview" class="p-3 bg-zinc-900 border border-white/5 rounded-xl space-y-2 text-xs">
+                  <div class="font-bold text-zinc-400 border-b border-white/5 pb-1 flex justify-between items-center text-[10px]">
+                    <span>YOUTUBE DESCRIPTION PREVIEW</span>
+                    <span class="text-[9px] text-zinc-500 font-normal">Line breaks & links simulated</span>
+                  </div>
+                  <div class="max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-zinc-300 select-text leading-relaxed font-sans scrollbar-thin bg-zinc-950 p-2.5 rounded-lg border border-white/5" v-html="formattedPreview"></div>
+                </div>
+              </div>
             </UFormField>
  
             <UFormField label="Tags (comma separated)">
@@ -694,7 +773,29 @@ watch(isDeleteModalOpen, (val) => {
         </div>
         <div class="grid lg:grid-cols-3 gap-8">
           <UCard class="glass-card lg:col-span-2">
-            <template #header><h3 class="font-bold text-lg">Daily Views</h3></template>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <h3 class="font-bold text-lg">{{ selectedMetric === 'views' ? 'Daily Views' : 'Subscribers Gained' }}</h3>
+                <div class="flex p-0.5 bg-zinc-950 rounded-lg border border-white/5">
+                  <button 
+                    type="button" 
+                    @click="selectedMetric = 'views'"
+                    class="px-2.5 py-1 text-xs rounded-md transition font-semibold cursor-pointer select-none"
+                    :class="selectedMetric === 'views' ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+                  >
+                    Views
+                  </button>
+                  <button 
+                    type="button" 
+                    @click="selectedMetric = 'subscribers'"
+                    class="px-2.5 py-1 text-xs rounded-md transition font-semibold cursor-pointer select-none"
+                    :class="selectedMetric === 'subscribers' ? 'bg-emerald-600 text-white shadow' : 'text-zinc-400 hover:text-white'"
+                  >
+                    Subscribers
+                  </button>
+                </div>
+              </div>
+            </template>
             <ClientOnly><apexchart type="area" height="350" :options="chartOptions" :series="chartSeries"></apexchart></ClientOnly>
           </UCard>
           <UCard class="glass-card lg:col-span-1">

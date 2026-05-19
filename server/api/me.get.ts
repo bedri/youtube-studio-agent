@@ -24,10 +24,42 @@ export default defineEventHandler(async (event) => {
     
     const channel = channelRes.data.items?.[0]
     if (!channel) return { authenticated: false }
+
+    try {
+      const channelId = channel.id
+      if (channelId) {
+        const storage = useStorage('data')
+        const historyKey = `youtube:analytics_history:${channelId}`
+        const history = (await storage.getItem(historyKey)) || []
+        const lastEntry = history[history.length - 1]
+        
+        const views = parseInt(channel.statistics?.viewCount || '0')
+        const subscribers = parseInt(channel.statistics?.subscriberCount || '0')
+        const videos = parseInt(channel.statistics?.videoCount || '0')
+        const today = new Date().toISOString().split('T')[0]
+        
+        if (!lastEntry || lastEntry.day !== today || lastEntry.views !== views || lastEntry.subscribers !== subscribers) {
+          history.push({
+            day: today,
+            views,
+            subscribers,
+            videos,
+            timestamp: new Date().toISOString()
+          })
+          if (history.length > 90) {
+            history.shift()
+          }
+          await storage.setItem(historyKey, history)
+        }
+      }
+    } catch (historyErr) {
+      console.error('[API me] Failed to update analytics history:', historyErr)
+    }
     
     return { 
       authenticated: true,
       isApiKey,
+      channelId: channel?.id,
       channel: channel?.snippet,
       branding: channel?.brandingSettings,
       statistics: channel?.statistics
