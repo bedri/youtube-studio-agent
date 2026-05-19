@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
       if (channelId) {
         const storage = useStorage('data')
         const historyKey = `youtube:analytics_history:${channelId}`
-        const history = (await storage.getItem(historyKey)) || []
+        const history: any = (await storage.getItem(historyKey)) || []
         const lastEntry = history[history.length - 1]
         
         const views = parseInt(channel.statistics?.viewCount || '0')

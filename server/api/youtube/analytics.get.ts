@@ -27,13 +27,15 @@ export default defineEventHandler(async (event) => {
   const serveLocalHistory = async () => {
     let totalSubs = 5000
     let totalViews = 100000
+    let history: any[] = []
     
     try {
       if (channelId) {
         const storage = useStorage('data')
         const historyKey = `youtube:analytics_history:${channelId}`
-        const history: any = await storage.getItem(historyKey)
-        if (history && history.length > 0) {
+        const fetchedHistory: any = await storage.getItem(historyKey)
+        if (fetchedHistory && fetchedHistory.length > 0) {
+          history = fetchedHistory
           const latest = history[history.length - 1]
           totalSubs = latest.subscribers || totalSubs
           totalViews = latest.views || totalViews
@@ -86,7 +88,7 @@ export default defineEventHandler(async (event) => {
     const dailyData = []
     for (let i = 15; i >= 0; i--) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-      const d = date.toISOString().split('T')[0]
+      const d = date.toISOString().split('T')[0] || ''
       const dayOfWeek = date.getDay()
 
       // Check if we have real history data for this day
