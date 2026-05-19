@@ -75,7 +75,7 @@ Eğer herhangi bir IDE veya grafik arayüz kullanmadan, terminal üzerinden yere
    ```
 2. Ardından aşağıdaki komutla etkileşimli terminal arayüzünü (TUI) başlatın:
    ```bash
-   ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ollmcp --model gemma4:26b --mcp-server "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
    ```
 3. Bu komut terminal üzerinde etkileşimli bir sohbet ekranı açar ve Ollama modeliniz doğrudan bizim YouTube Agent MCP araçlarımızı çağırabilir.
 

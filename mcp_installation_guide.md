@@ -75,7 +75,7 @@ If you want to run a local Ollama model (e.g. `gemma4:26b`) and connect it direc
    ```
 2. Next, launch the interactive terminal user interface (TUI):
    ```bash
-   ollmcp --model gemma4:26b --mcp "node /home/bedri/Projects/Youtube-Agent/mcp-server.js"
+   ollmcp --model gemma4:26b --mcp-server "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
    ```
 3. This will open an interactive chat session in your terminal, enabling your local Ollama model to directly execute YouTube Agent tools.
 
