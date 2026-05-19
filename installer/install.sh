@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# YouTube Studio Agent - Graphical Installer
-# Supports kdialog (KDE) and zenity (GNOME/XFCE)
+# YouTube Studio Agent - Graphical Installer (Electron Only)
+# Supports kdialog (KDE), zenity (GNOME/XFCE), osascript (macOS) and CLI fallback
 
 set -e
 
@@ -28,17 +28,6 @@ fi
 show_msg() {
     if [ "$GUI" = "osascript" ]; then
         osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
-    elif [ "$GUI" = "osascript" ]; then
-        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
-    elif [ "$GUI" = "osascript" ]; then
-        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
-        if [ "$CHOICE_RAW" = "false" ]; then
-            exit 0
-        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
-            CHOICE="electron"
-        else
-            CHOICE="tauri"
-        fi
     elif [ "$GUI" = "kdialog" ]; then
         kdialog --title "$APP_NAME Installer" --msgbox "$1"
     elif [ "$GUI" = "zenity" ]; then
@@ -51,18 +40,7 @@ show_msg() {
 
 show_error() {
     if [ "$GUI" = "osascript" ]; then
-        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
-    elif [ "$GUI" = "osascript" ]; then
         osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
-    elif [ "$GUI" = "osascript" ]; then
-        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
-        if [ "$CHOICE_RAW" = "false" ]; then
-            exit 0
-        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
-            CHOICE="electron"
-        else
-            CHOICE="tauri"
-        fi
     elif [ "$GUI" = "kdialog" ]; then
         kdialog --title "Error" --error "$1"
     elif [ "$GUI" = "zenity" ]; then
@@ -73,72 +51,21 @@ show_error() {
     exit 1
 }
 
-ask_version() {
-    if [ "$GUI" = "osascript" ]; then
-        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "'"$APP_NAME Installer"'"'
-    elif [ "$GUI" = "osascript" ]; then
-        osascript -e 'display dialog "'"$1"'" buttons {"OK"} default button "OK" with title "Error" with icon stop'
-    elif [ "$GUI" = "osascript" ]; then
-        CHOICE_RAW=$(osascript -e 'choose from list {"Electron Version (Recommended)", "Tauri Version"} with prompt "Select the version to install:" with title "'"$APP_NAME Installer"'"')
-        if [ "$CHOICE_RAW" = "false" ]; then
-            exit 0
-        elif [[ "$CHOICE_RAW" == *"Electron"* ]]; then
-            CHOICE="electron"
-        else
-            CHOICE="tauri"
-        fi
-    elif [ "$GUI" = "kdialog" ]; then
-        CHOICE=$(kdialog --title "$APP_NAME Installer" --radiolist "Select the version to install:" \
-            "electron" "Electron Version (Recommended - Zero Config)" on \
-            "tauri" "Tauri Version (Lightweight - Requires System Libs)" off)
-    elif [ "$GUI" = "zenity" ]; then
-        CHOICE=$(zenity --list --title="$APP_NAME Installer" --text="Select the version to install:" \
-            --radiolist --column="Select" --column="Version" --column="Description" \
-            TRUE "electron" "Electron Version (Recommended - Zero Config)" \
-            FALSE "tauri" "Tauri Version (Lightweight - Requires System Libs)")
-    else
-        echo "Select the version to install:"
-        echo "1) Electron Version (Recommended - Zero Config)"
-        echo "2) Tauri Version (Lightweight - Requires System Libs)"
-        read -p "Enter choice [1 or 2]: " num
-        if [ "$num" = "1" ]; then
-            CHOICE="electron"
-        elif [ "$num" = "2" ]; then
-            CHOICE="tauri"
-        else
-            exit 0
-        fi
-    fi
-    
-    if [ -z "$CHOICE" ]; then
-        exit 0 # User cancelled
-    fi
-    echo "$CHOICE"
-}
-
-VERSION=$(ask_version)
-
-if [ "$VERSION" = "electron" ]; then
-    if [ "$OS_TYPE" = "Darwin" ]; then
-        FILE_NAME="youtube-studio-agent-electron-macos.zip"
-    else
-        FILE_NAME="youtube-studio-agent-electron-x86_64.AppImage"
-    fi
-    FILE_NAME="youtube-studio-agent-electron-x86_64.AppImage"
+if [ "$OS_TYPE" = "Darwin" ]; then
+    FILE_NAME="youtube-studio-agent-electron-macos.zip"
 else
-    FILE_NAME="youtube-studio-agent-tauri-x86_64"
+    FILE_NAME="youtube-studio-agent-electron-x86_64.AppImage"
 fi
 
-show_msg "Starting download of $APP_NAME ($VERSION edition)...\nThis may take a few moments depending on your connection."
+show_msg "Starting download of $APP_NAME...\nThis may take a few moments depending on your connection."
 
 cd /tmp
 rm -f "$FILE_NAME" "$FILE_NAME.sha256"
 
 # Download binary
 wget -q --show-progress "$REPO_URL/$FILE_NAME" || {
-    # Fallback to dummy generation for testing since the repo is not populated yet
     echo "Creating mock binary for testing purposes..."
-    echo "#!/bin/bash\necho 'Mock YouTube Studio Agent'" > "$FILE_NAME"
+    echo -e "#!/bin/bash\necho 'Mock YouTube Studio Agent'" > "$FILE_NAME"
 }
 
 # Download checksum
@@ -158,7 +85,6 @@ fi
 if [ "$OS_TYPE" = "Darwin" ]; then
     INSTALL_DIR="/Applications"
     echo "Mac installation..."
-    # Unzip to applications if it is a zip
     if [[ "$FILE_NAME" == *.zip ]]; then
         unzip -o "$FILE_NAME" -d "$INSTALL_DIR/YouTubeStudioAgent"
     else
@@ -167,10 +93,10 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     fi
 else
     mkdir -p "$INSTALL_DIR"
-mkdir -p "$DESKTOP_DIR"
+    mkdir -p "$DESKTOP_DIR"
     mkdir -p "$ICON_DIR"
 
-cp "$FILE_NAME" "$INSTALL_DIR/$BIN_NAME"
+    cp "$FILE_NAME" "$INSTALL_DIR/$BIN_NAME"
     chmod +x "$INSTALL_DIR/$BIN_NAME"
 
     # Create .desktop file

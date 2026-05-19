@@ -15,9 +15,7 @@
     "test": "vitest run",
     "typecheck": "nuxi typecheck || true",
     "desktop:dev": "NODE_ENV=development concurrently \"npm run dev\" \"wait-on http-get://localhost:50555/ && electron .\"",
-    "desktop:build": "npm run build && electron-builder",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "npm run build && tauri build"
+    "desktop:build": "npm run build && electron-builder"
   },
   "dependencies": {
     "@nuxt/ui": "^4.7.1",
@@ -32,8 +30,6 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "@nuxt/test-utils": "^4.0.3",
-    "@tauri-apps/api": "^2.11.0",
-    "@tauri-apps/cli": "^2.11.2",
     "@types/nodemailer": "^8.0.0",
     "concurrently": "^9.2.1",
     "electron": "^42.1.0",
