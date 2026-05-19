@@ -336,7 +336,7 @@ watch(isDeleteModalOpen, (val) => {
         <AppLogo />
         <div>
           <h1 class="text-3xl font-black tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
-            YouTube Batch Agent
+            YouTube Studio Agent
           </h1>
           <p class="text-zinc-500 font-medium">Bulk manage your channel content</p>
         </div>

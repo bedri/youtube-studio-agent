@@ -1,4 +1,4 @@
-# YouTube Batch Agent
+# YouTube Studio Agent
 
 A highly optimized, premium-designed web application built on **Nuxt 4** and **Tailwind CSS/Nuxt UI** to orchestrate, monitor, and bulk-manage your YouTube channel content autonomously.
 
@@ -48,7 +48,7 @@ A highly optimized, premium-designed web application built on **Nuxt 4** and **T
 If you want your assistant to manage your YouTube channel without giving them your personal Google account password or login credentials, follow these simple steps:
 
 ### 1. Exporting the Access Tokens (Done by the Owner)
-1. Log in to the YouTube Batch Agent on your local machine.
+1. Log in to the YouTube Studio Agent on your local machine.
 2. Visit the secure token exporter route: `http://localhost:50555/api/youtube/export-tokens`
 3. Copy the long JSON string inside the `tokenJson` property.
 4. Send this JSON string to your assistant securely.
@@ -88,18 +88,18 @@ npm run dev
 
 To keep the application and the autonomous Sentinel worker running 24/7 in the background on your Linux server, deploy it as a systemd service using the bundled service file.
 
-### 1. The Service File (`youtube-agent.service`)
+### 1. The Service File (`youtube-studio-agent.service`)
 
 The file is located in the root of the project:
 ```ini
 [Unit]
-Description=YouTube Batch Agent Service
+Description=YouTube Studio Agent Service
 After=network.target
 
 [Service]
 Type=simple
-User=bedri
-WorkingDirectory=/home/bedri/Projects/Youtube-Agent
+User=your_username
+WorkingDirectory=/path/to/your/project/youtube-studio-agent
 ExecStart=/usr/bin/npm run dev
 Restart=on-failure
 Environment=NODE_ENV=development
@@ -114,29 +114,29 @@ Run the following commands to install and start the service:
 
 ```bash
 # 1. Copy the service file to the systemd directory
-sudo cp youtube-agent.service /etc/systemd/system/youtube-agent.service
+sudo cp youtube-studio-agent.service /etc/systemd/system/youtube-studio-agent.service
 
 # 2. Reload the systemd daemon to recognize the new service
 sudo systemctl daemon-reload
 
 # 3. Enable the service to launch automatically on system boot
-sudo systemctl enable youtube-agent.service
+sudo systemctl enable youtube-studio-agent.service
 
 # 4. Start the service
-sudo systemctl start youtube-agent.service
+sudo systemctl start youtube-studio-agent.service
 ```
 
 ### 3. Monitoring & Managing
 
 *   **Check status:**
     ```bash
-    systemctl status youtube-agent.service
+    systemctl status youtube-studio-agent.service
     ```
 *   **View real-time application logs:**
     ```bash
-    journalctl -u youtube-agent.service -f --no-pager
+    journalctl -u youtube-studio-agent.service -f --no-pager
     ```
 *   **Restart service:**
     ```bash
-    systemctl restart youtube-agent.service
+    systemctl restart youtube-studio-agent.service
     ```

@@ -17,7 +17,7 @@ export const sendNotification = async (subject: string, text: string) => {
 
   const mailOptions = {
     from: '"YouTube Agent" <no-reply@localhost>',
-    to: process.env.NOTIFICATION_EMAIL || 'bedri@localhost',
+    to: process.env.NOTIFICATION_EMAIL || 'admin@localhost',
     subject,
     text
   }

@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'YouTube Batch Agent',
+      title: 'YouTube Studio Agent',
       link: [
         { rel: 'icon', type: 'image/png', href: '/favicon.png' }
       ]

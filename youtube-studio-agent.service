@@ -1,11 +1,11 @@
 [Unit]
-Description=YouTube Batch Agent Service
+Description=YouTube Studio Agent Service
 After=network.target
 
 [Service]
 Type=simple
-User=bedri
-WorkingDirectory=/home/bedri/Projects/Youtube-Agent
+User=your_username
+WorkingDirectory=/path/to/your/project/youtube-studio-agent
 ExecStart=/usr/bin/npm run dev
 Restart=on-failure
 Environment=NODE_ENV=development
