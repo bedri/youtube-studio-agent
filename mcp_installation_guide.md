@@ -22,7 +22,28 @@ The `mcp-server.js` script in the project root directory is a stdio-based server
 
 Follow the corresponding configuration steps based on where you run your AI assistant:
 
-### 1. Cursor IDE Integration (with Gemini or Claude)
+### 1. Antigravity & OpenCode Integration
+
+To enable your Antigravity assistant (the AI coding agent you are currently talking to) to call your local YouTube Agent APIs directly as a tool:
+1. Open the file `/home/bedri/.gemini/antigravity/mcp_config.json`.
+2. Add the following configuration block:
+   ```json
+   {
+     "mcpServers": {
+       "youtube-agent": {
+         "command": "node",
+         "args": [
+           "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
+         ]
+       }
+     }
+   }
+   ```
+3. Once configured, you can directly ask Antigravity to "list my channel videos" or "get my channel stats", and the assistant will execute real-time queries through your local MCP server instead of manually reading files.
+
+---
+
+### 2. Cursor IDE Integration (with Gemini or Claude)
 
 To enable the AI model running in Cursor to call your local APIs:
 1. Open Cursor and go to **Settings** > **Features** > **MCP**.

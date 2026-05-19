@@ -22,7 +22,28 @@ Proje kök dizininde yer alan `mcp-server.js` dosyası, **Model Context Protocol
 
 Yapay zeka modelini nerede kullandığınıza bağlı olarak ilgili konfigürasyonu uygulayın:
 
-### 1. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
+### 1. Antigravity & OpenCode Entegrasyonu
+
+Antigravity asistanınızın (şu an konuştuğunuz yapay zeka kodlama asistanı) yerel YouTube Agent API'lerini doğrudan bir araç (tool) olarak kullanabilmesi için:
+1. `/home/bedri/.gemini/antigravity/mcp_config.json` dosyasını açın.
+2. Aşağıdaki konfigürasyon bloğunu ekleyin:
+   ```json
+   {
+     "mcpServers": {
+       "youtube-agent": {
+         "command": "node",
+         "args": [
+           "/home/bedri/Projects/Youtube-Agent/mcp-server.js"
+         ]
+       }
+     }
+   }
+   ```
+3. Bu ayarı yaptıktan sonra, Antigravity'ye "Kanalımdaki videoları listele" veya "Grafiklerimi getir" gibi talimatlar verdiğinizde, asistan dosyaları manuel okumak yerine doğrudan yerel API'leriniz üzerinden gerçek zamanlı sorgular çalıştırabilir.
+
+---
+
+### 2. Cursor IDE Entegrasyonu (Gemini veya Claude ile)
 
 Cursor üzerinde kullandığınız yapay zekanın (Gemini veya Claude) yerel API'lerinizle konuşmasını sağlamak için:
 1. Cursor uygulamasında **Settings** (Ayarlar) > **Features** > **MCP** sayfasına gidin.
