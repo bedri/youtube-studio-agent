@@ -4,6 +4,8 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const modelName = extractStringValue(body.model) || 'gemma4:e2b'
   const focusPrompt = body.focus || ''
+  const lang = getSystemLanguage(event)
+  const isTr = lang === 'Turkish'
 
   const storage = useStorage('data')
   
@@ -41,7 +43,7 @@ export default defineEventHandler(async (event) => {
     })
 
   // 3. Assemble channel performance context
-  const dataSummary = `
+  const dataSummary = isTr ? `
 Kanal Adı: ${channelTitle}
 Toplam Abone: ${totalSubs}
 Toplam İzlenme: ${totalViews}
@@ -55,9 +57,23 @@ ${idx + 1}. Başlık: "${v.title}"
    - Yorum: ${v.comments}
    - Süre: ${v.duration} (${v.isShort ? 'Shorts' : 'Uzun Video'})
 `).join('\n')}
+  ` : `
+Channel Title: ${channelTitle}
+Total Subscribers: ${totalSubs}
+Total Views: ${totalViews}
+
+Details of 15 Recent and Featured Videos:
+${formattedVideos.map((v: any, idx: number) => `
+${idx + 1}. Title: "${v.title}"
+   - Publish Date: ${v.publishedAt}
+   - Views: ${v.views}
+   - Likes: ${v.likes}
+   - Comments: ${v.comments}
+   - Duration: ${v.duration} (${v.isShort ? 'Shorts' : 'Long-form'})
+`).join('\n')}
   `
 
-  const prompt = `
+  const prompt = isTr ? `
 Sen YouTube kanalları için veri analitiği ve strateji planlaması yapan kıdemli bir yapay zeka asistanısın.
 Aşağıda yer alan gerçek kanal ve video analitik verilerini kullanarak detaylı bir **Derin Retrospektif ve Trend Analizi** (Deep Retrospective & Trend Analysis) raporu hazırla.
 
@@ -94,7 +110,44 @@ Raporu Markdown formatında oluştur ve şu başlıkları içermesini sağla:
 
 ## 4. 🚀 3 Adımlı Eylem Planı (Action Plan)
 - Gelecek videolar için veriye dayalı 3 somut video fikri/konusu ve bunlara dair süre/başlık tavsiyeleri öner.
-  `;
+` : `
+You are a senior YouTube data analyst and strategist.
+Prepare a detailed **Deep Retrospective & Trend Analysis** report using the real channel and video analytics data below.
+
+REPORT LANGUAGE AND TONE:
+- Prepare the report entirely in ${lang}.
+- The tone should be professional, data-driven, motivating, and developer/cyberpunk themed (incorporating tech terms).
+
+ANALYSIS FOCUS (User Request):
+${focusPrompt ? `"${focusPrompt}"` : `"Overall growth, subscriber acquisition, and the impact of content duration (Shorts vs Long-form) on performance."`}
+
+CHANNEL DATA:
+${dataSummary}
+
+REPORT FORMAT:
+Prepare the report in Markdown format and include the following sections:
+
+# 📊 SMART TREND & CORRELATION ANALYSIS
+*(A short and striking summary evaluation of the channel's overall health)*
+
+## 1. ⚔️ SWOT Analysis
+- **Strengths:** (Verifiable from the data, most viewed or highly engaged video types/formats)
+- **Weaknesses:** (Low performance, short/long videos experiencing drop-offs, or low engagement videos)
+- **Opportunities:** (Untapped areas or trends that could accelerate the channel's growth)
+- **Threats:** (Declining trends, content fatigue that could cause subscriber loss, etc.)
+
+## 2. ⏱️ Duration & Format Sweet Spot Analysis
+- Analyze the effect of video duration on views and likes.
+- Evaluate the efficiency of Shorts engagement (likes/comments) compared to long-form videos.
+- Clearly recommend the ideal video duration (Sweet Spot) range for the channel.
+
+## 3. 🎯 Title & Keyword Discoveries
+- Pull correlation of words used in titles (Which words/topics got more views or likes?).
+- Provide high-converting keyword recommendations for future videos.
+
+## 4. 🚀 3-Step Action Plan
+- Suggest 3 concrete video ideas/topics based on the data, along with duration and title recommendations.
+`
 
   try {
     const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
@@ -102,7 +155,9 @@ Raporu Markdown formatında oluştur ve şu başlıkları içermesini sağla:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: modelName,
-        system: "Sen YouTube kanalları için veri analitiği ve strateji planlaması yapan kıdemli bir yapay zeka asistanısın. Raporu tamamen Türkçe hazırla.",
+        system: isTr 
+          ? "Sen YouTube kanalları için veri analitiği ve strateji planlaması yapan kıdemli bir yapay zeka asistanısın. Raporu tamamen Türkçe dilinde hazırla." 
+          : `You are a senior YouTube data analyst and strategist. You MUST prepare the report entirely in ${lang} language.`,
         prompt: prompt,
         stream: true,
         options: {

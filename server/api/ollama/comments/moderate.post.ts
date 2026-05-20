@@ -5,6 +5,8 @@ export default defineEventHandler(async (event) => {
   const comments = body.comments
   const videoTitle = body.videoTitle
   const modelName = extractStringValue(body.model) || 'gemma4:e2b'
+  const lang = getSystemLanguage(event)
+  const isTr = lang === 'Turkish'
 
   if (!comments || !Array.isArray(comments)) {
     throw createError({ statusCode: 400, statusMessage: 'comments array is required' })
@@ -25,8 +27,8 @@ Classification rules:
 You MUST format the output ONLY as a JSON array of objects inside a \`\`\`json ... \`\`\` block, with keys:
 - "commentId" (string, must exactly match the input commentId)
 - "classification" (string: "spam_troll" | "question" | "feedback")
-- "rationale" (string, short 1-sentence Turkish reason explaining the classification)
-- "draftReply" (string or null, a friendly, professional Turkish reply draft. If the classification is spam_troll, set to null)
+- "rationale" (string, short 1-sentence ${lang} reason explaining the classification)
+- "draftReply" (string or null, a friendly, professional ${lang} reply draft. If the classification is spam_troll, set to null)
 
 Input Comments:
 ${JSON.stringify(comments.map(c => ({ commentId: c.commentId, author: c.author, text: c.text })), null, 2)}
@@ -76,8 +78,8 @@ Respond ONLY with the JSON array. Do not write any conversational intro or outro
       return comments.map(c => ({
         commentId: c.commentId,
         classification: 'feedback',
-        rationale: 'Otomatik geri bildirim sınıflandırması (Format hatası düzeltildi).',
-        draftReply: `Destekleriniz için çok teşekkür ederiz, harika bir gün dileriz!`
+        rationale: isTr ? 'Otomatik geri bildirim sınıflandırması (Format hatası düzeltildi).' : 'Automatic classification (format error fallback).',
+        draftReply: isTr ? `Destekleriniz için çok teşekkür ederiz, harika bir gün dileriz!` : `Thank you so much for your support! Have a great day!`
       }))
     }
   } catch (error: any) {
