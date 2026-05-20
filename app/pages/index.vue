@@ -1428,7 +1428,7 @@ watch(isDeleteModalOpen, (val) => {
                   <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Model Seçin</label>
                   <USelectMenu 
                     v-model="selectedModel" 
-                    :options="ollamaModels.map(m => m.name)" 
+                    :items="ollamaModels.map(m => m.name)" 
                     class="w-full !bg-zinc-950/80 border-white/10" 
                   />
                   <p class="text-[10px] text-zinc-500 mt-1">Önerilen en hafif model: <strong>gemma4:e2b</strong></p>
@@ -1630,9 +1630,8 @@ watch(isDeleteModalOpen, (val) => {
                   <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Video Seçin</label>
                   <USelectMenu 
                     v-model="selectedCopyVideoId" 
-                    :options="videos || []" 
-                    value-attribute="id"
-                    option-attribute="snippet.title"
+                    :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
+                    value-attribute="value"
                     class="w-full !bg-zinc-950/60 border-white/5" 
                     :disabled="isGeneratingCopy"
                     placeholder="Analiz edilecek videoyu seçin..."
@@ -1766,9 +1765,8 @@ watch(isDeleteModalOpen, (val) => {
                 <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Video Seçin</label>
                 <USelectMenu 
                   v-model="selectedCommentVideoId" 
-                  :options="videos || []" 
-                  value-attribute="id"
-                  option-attribute="snippet.title"
+                  :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
+                  value-attribute="value"
                   class="w-full !bg-zinc-950/60 border-white/5" 
                   :disabled="isLoadingComments || isModeratingComments"
                   placeholder="Yorumları incelenecek videoyu seçin..."
@@ -1921,10 +1919,9 @@ watch(isDeleteModalOpen, (val) => {
               </div>
             </div>
           </UCard>
-        </div>
 
-        <!-- Global Localization Card -->
-        <div v-show="activeAiSubTab === 'localization'" class="space-y-6">
+          <!-- Global Localization Card -->
+          <div v-show="activeAiSubTab === 'localization'" class="space-y-6">
           <UCard class="glass-card">
             <template #header>
               <div class="flex items-center justify-between">
@@ -1942,9 +1939,8 @@ watch(isDeleteModalOpen, (val) => {
                   <label class="text-xs font-bold text-zinc-400 uppercase">Video Seçin</label>
                   <USelectMenu
                     v-model="selectedLocVideoId"
-                    :options="videos || []"
-                    option-attribute="snippet.title"
-                    value-attribute="id"
+                    :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []"
+                    value-attribute="value"
                     placeholder="Videonuzu Seçin"
                     class="w-full"
                   />
@@ -2023,9 +2019,9 @@ watch(isDeleteModalOpen, (val) => {
             </div>
           </UCard>
         </div>
-
       </div>
     </div>
+  </div>
 
     <!-- Empty State / Authentication Interface -->
     <div v-else-if="!auth?.authenticated" class="max-w-md w-full mx-auto py-12 px-6 bg-zinc-950/40 border border-white/5 rounded-2xl shadow-2xl flex flex-col items-center space-y-8 backdrop-blur-xl animate-[fadeIn_0.5s_ease-out]">
