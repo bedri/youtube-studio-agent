@@ -46,6 +46,7 @@
   "build": {
     "appId": "com.bedri.youtubestudioagent",
     "productName": "YouTube Studio Agent",
+    "asar": false,
     "directories": {
       "output": "dist-desktop"
     },
