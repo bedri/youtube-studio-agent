@@ -2,7 +2,10 @@ import { defineEventHandler, readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { title, description, targetLang } = body
+  const title = body.title
+  const description = body.description
+  const targetLang = extractStringValue(body.targetLang)
+  const modelName = extractStringValue(body.model) || 'gemma4:latest'
 
   if (!title || !targetLang) {
     throw createError({ statusCode: 400, statusMessage: 'Title and target language are required' })
@@ -46,11 +49,14 @@ ${description || ''}`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemma4:26b', // Defaulting to gemma4:26b as configured earlier, or llama3
+        model: modelName,
         system: systemPrompt,
         prompt: userPrompt,
         stream: false,
-        format: 'json'
+        format: 'json',
+        options: {
+          temperature: 0.3
+        }
       })
     })
 

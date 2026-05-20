@@ -102,8 +102,14 @@ Raporu Markdown formatında oluştur ve şu başlıkları içermesini sağla:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: modelName,
+        system: "Sen YouTube kanalları için veri analitiği ve strateji planlaması yapan kıdemli bir yapay zeka asistanısın. Raporu tamamen Türkçe hazırla.",
         prompt: prompt,
-        stream: true
+        stream: true,
+        options: {
+          temperature: 0.2,
+          top_p: 0.9,
+          top_k: 40
+        }
       })
     })
 

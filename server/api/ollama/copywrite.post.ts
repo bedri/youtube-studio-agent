@@ -73,8 +73,14 @@ Please output the promotional copies in Turkish structured in Markdown under the
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: modelName,
+        system: "Sen profesyonel bir YouTube SEO uzmanı ve metin yazarısın. Çıktıyı tamamen Türkçe üret.",
         prompt: prompt,
-        stream: true
+        stream: true,
+        options: {
+          temperature: 0.3,
+          top_p: 0.9,
+          top_k: 40
+        }
       })
     })
 

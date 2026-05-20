@@ -242,7 +242,8 @@ const startLocalization = async () => {
       body: {
         title: video.snippet.title,
         description: video.snippet.description,
-        targetLang: locLanguages.find(l => l.value === targetLocLang.value)?.label || 'English'
+        targetLang: locLanguages.find(l => l.value === targetLocLang.value)?.label || 'English',
+        model: selectedModel.value
       }
     })
     
