@@ -1428,7 +1428,8 @@ watch(isDeleteModalOpen, (val) => {
                   <label class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Model Seçin</label>
                   <USelectMenu 
                     v-model="selectedModel" 
-                    :items="ollamaModels.map(m => m.name)" 
+                    :items="ollamaModels.map(m => ({ label: m.name, value: m.name })) || []" 
+                    value-attribute="value"
                     class="w-full !bg-zinc-950/80 border-white/10" 
                   />
                   <p class="text-[10px] text-zinc-500 mt-1">Önerilen en hafif model: <strong>gemma4:e2b</strong></p>
@@ -1949,8 +1950,7 @@ watch(isDeleteModalOpen, (val) => {
                   <label class="text-xs font-bold text-zinc-400 uppercase">Hedef Dil</label>
                   <USelectMenu
                     v-model="targetLocLang"
-                    :options="locLanguages"
-                    option-attribute="label"
+                    :items="locLanguages"
                     value-attribute="value"
                     placeholder="Dil Seçin"
                     class="w-full"
