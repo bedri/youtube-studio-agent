@@ -2,8 +2,9 @@ import { defineEventHandler, readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { comments, model, videoTitle } = body
-  const modelName = model || 'gemma4:e2b'
+  const comments = body.comments
+  const videoTitle = body.videoTitle
+  const modelName = extractStringValue(body.model) || 'gemma4:e2b'
 
   if (!comments || !Array.isArray(comments)) {
     throw createError({ statusCode: 400, statusMessage: 'comments array is required' })

@@ -2,7 +2,10 @@ import { defineEventHandler, readBody, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { videoId, targetLang, title, description } = body
+  const videoId = extractStringValue(body.videoId)
+  const targetLang = extractStringValue(body.targetLang)
+  const title = body.title
+  const description = body.description
 
   if (!videoId || !targetLang || !title) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })

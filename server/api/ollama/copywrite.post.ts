@@ -2,8 +2,10 @@ import { defineEventHandler, readBody, setHeader, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { videoId, type, context, model } = body
-  const modelName = model || 'gemma4:e2b'
+  const videoId = extractStringValue(body.videoId)
+  const type = body.type
+  const context = body.context
+  const modelName = extractStringValue(body.model) || 'gemma4:e2b'
 
   if (!videoId) {
     throw createError({ statusCode: 400, statusMessage: 'videoId is required' })

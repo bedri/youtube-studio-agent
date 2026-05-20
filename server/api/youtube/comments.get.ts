@@ -2,7 +2,7 @@ import { defineEventHandler, getQuery, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const videoId = query.videoId as string
+  const videoId = extractStringValue(query.videoId)
 
   if (!videoId) {
     throw createError({ statusCode: 400, statusMessage: 'videoId query parameter is required' })

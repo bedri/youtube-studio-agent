@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const videoId = query.id as string
+  const videoId = extractStringValue(query.id)
 
   if (!videoId) {
     throw createError({ statusCode: 400, statusMessage: 'Video ID is required' })

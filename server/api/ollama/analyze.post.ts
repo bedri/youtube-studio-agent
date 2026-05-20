@@ -2,7 +2,7 @@ import { defineEventHandler, readBody, setHeader, createError } from 'h3'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const modelName = body.model || 'gemma4:e2b'
+  const modelName = extractStringValue(body.model) || 'gemma4:e2b'
   const focusPrompt = body.focus || ''
 
   const storage = useStorage('data')

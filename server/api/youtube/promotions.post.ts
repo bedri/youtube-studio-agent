@@ -1,6 +1,7 @@
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { videoId, dailyBudget, durationDays, targetLocations } = body
+  const videoId = extractStringValue(body.videoId)
+  const { dailyBudget, durationDays, targetLocations } = body
 
   const tokens = await getYouTubeTokens(event)
   if (!tokens) {
