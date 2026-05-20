@@ -223,6 +223,13 @@ process.stdin.on('data', (chunk) => {
 async function handleRequest(line) {
   try {
     const request = JSON.parse(line);
+    
+    // Ignore notifications (which have no id) as per JSON-RPC spec
+    if (request.id === undefined) {
+      debugLog(`Received notification: ${request.method || 'unknown'}. Ignoring response.`);
+      return;
+    }
+
     let result = null;
     let error = null;
 
