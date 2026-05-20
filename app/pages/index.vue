@@ -1139,10 +1139,10 @@ watch(isDeleteModalOpen, (val) => {
  
             <div class="grid grid-cols-2 gap-4">
               <UFormField label="Privacy Status">
-                <USelectMenu v-model="form.privacyStatus" :items="([ { label: 'Public', value: 'public' }, { label: 'Private', value: 'private' }, { label: 'Unlisted', value: 'unlisted' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" :disabled="auth?.isApiKey" />
+                <USelectMenu v-model="form.privacyStatus" :items="([ { label: 'Public', value: 'public' }, { label: 'Private', value: 'private' }, { label: 'Unlisted', value: 'unlisted' }] as any[])" placeholder="Keep existing" valueKey="value" :search-input="false" :disabled="auth?.isApiKey" />
               </UFormField>
               <UFormField label="Category">
-                <USelectMenu v-model="form.categoryId" :items="([ { label: 'Gaming', value: '20' }, { label: 'Education', value: '27' }, { label: 'Entertainment', value: '24' }, { label: 'People & Blogs', value: '22' }] as any[])" placeholder="Keep existing" value-attribute="value" :search-input="false" :disabled="auth?.isApiKey" />
+                <USelectMenu v-model="form.categoryId" :items="([ { label: 'Gaming', value: '20' }, { label: 'Education', value: '27' }, { label: 'Entertainment', value: '24' }, { label: 'People & Blogs', value: '22' }] as any[])" placeholder="Keep existing" valueKey="value" :search-input="false" :disabled="auth?.isApiKey" />
               </UFormField>
             </div>
  
@@ -1429,7 +1429,7 @@ watch(isDeleteModalOpen, (val) => {
                   <USelectMenu 
                     v-model="selectedModel" 
                     :items="ollamaModels.map(m => ({ label: m.name, value: m.name })) || []" 
-                    value-attribute="value"
+                    valueKey="value"
                     class="w-full !bg-zinc-950/80 border-white/10 !text-zinc-100" 
                   />
                   <p class="text-[10px] text-zinc-500 mt-1">Önerilen en hafif model: <strong>gemma4:e2b</strong></p>
@@ -1632,7 +1632,7 @@ watch(isDeleteModalOpen, (val) => {
                   <USelectMenu 
                     v-model="selectedCopyVideoId" 
                     :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
-                    value-attribute="value"
+                    valueKey="value"
                     class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100" 
                     :disabled="isGeneratingCopy"
                     placeholder="Analiz edilecek videoyu seçin..."
@@ -1767,7 +1767,7 @@ watch(isDeleteModalOpen, (val) => {
                 <USelectMenu 
                   v-model="selectedCommentVideoId" 
                   :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
-                  value-attribute="value"
+                  valueKey="value"
                   class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100" 
                   :disabled="isLoadingComments || isModeratingComments"
                   placeholder="Yorumları incelenecek videoyu seçin..."
@@ -1941,7 +1941,7 @@ watch(isDeleteModalOpen, (val) => {
                   <USelectMenu
                     v-model="selectedLocVideoId"
                     :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []"
-                    value-attribute="value"
+                    valueKey="value"
                     placeholder="Videonuzu Seçin"
                     class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
                   />
@@ -1951,7 +1951,7 @@ watch(isDeleteModalOpen, (val) => {
                   <USelectMenu
                     v-model="targetLocLang"
                     :items="locLanguages"
-                    value-attribute="value"
+                    valueKey="value"
                     placeholder="Dil Seçin"
                     class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
                   />
@@ -2258,7 +2258,7 @@ watch(isDeleteModalOpen, (val) => {
               <USelectMenu 
                 v-model="promotionForm.videoId" 
                 :items="videos?.filter((v: any) => v.status?.privacyStatus !== 'private').map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
-                value-attribute="value"
+                valueKey="value"
                 placeholder="Select a video..."
                 class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
               />
