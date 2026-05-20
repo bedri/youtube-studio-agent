@@ -1430,7 +1430,7 @@ watch(isDeleteModalOpen, (val) => {
                     v-model="selectedModel" 
                     :items="ollamaModels.map(m => ({ label: m.name, value: m.name })) || []" 
                     value-attribute="value"
-                    class="w-full !bg-zinc-950/80 border-white/10" 
+                    class="w-full !bg-zinc-950/80 border-white/10 !text-zinc-100" 
                   />
                   <p class="text-[10px] text-zinc-500 mt-1">Önerilen en hafif model: <strong>gemma4:e2b</strong></p>
                 </div>
@@ -1633,7 +1633,7 @@ watch(isDeleteModalOpen, (val) => {
                     v-model="selectedCopyVideoId" 
                     :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
                     value-attribute="value"
-                    class="w-full !bg-zinc-950/60 border-white/5" 
+                    class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100" 
                     :disabled="isGeneratingCopy"
                     placeholder="Analiz edilecek videoyu seçin..."
                   />
@@ -1768,7 +1768,7 @@ watch(isDeleteModalOpen, (val) => {
                   v-model="selectedCommentVideoId" 
                   :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
                   value-attribute="value"
-                  class="w-full !bg-zinc-950/60 border-white/5" 
+                  class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100" 
                   :disabled="isLoadingComments || isModeratingComments"
                   placeholder="Yorumları incelenecek videoyu seçin..."
                 />
@@ -1943,7 +1943,7 @@ watch(isDeleteModalOpen, (val) => {
                     :items="videos?.map((v: any) => ({ label: v.snippet.title, value: v.id })) || []"
                     value-attribute="value"
                     placeholder="Videonuzu Seçin"
-                    class="w-full"
+                    class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
                   />
                 </div>
                 <div class="space-y-2">
@@ -1953,7 +1953,7 @@ watch(isDeleteModalOpen, (val) => {
                     :items="locLanguages"
                     value-attribute="value"
                     placeholder="Dil Seçin"
-                    class="w-full"
+                    class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
                   />
                 </div>
               </div>
@@ -2260,7 +2260,7 @@ watch(isDeleteModalOpen, (val) => {
                 :items="videos?.filter((v: any) => v.status?.privacyStatus !== 'private').map((v: any) => ({ label: v.snippet.title, value: v.id })) || []" 
                 value-attribute="value"
                 placeholder="Select a video..."
-                class="w-full"
+                class="w-full !bg-zinc-950/60 border-white/5 !text-zinc-100"
               />
             </UFormField>
 
